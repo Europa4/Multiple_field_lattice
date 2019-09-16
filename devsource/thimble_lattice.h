@@ -24,16 +24,11 @@ typedef std::complex<double> dcomp;
 const double pi = 3.14159265359;
 const double e = 2.71828182846;
 
-//forward defenitions******************************************************************
-class thimble_system;
-//*************************************************************************************
-
-
 class scalar_field
 {
     private:
     int* occupation_number; //initial occupation number during field setup
-    //int Nx, Nt, Npath, Nrpath, Ntot;
+    int Nx, Nt, Npath, Nrpath, Ntot;
     double m, squareMass; //field mass
     double dt, dx; //lattice spacings
     bool is_flowed;
@@ -68,7 +63,7 @@ class thimble_system
 {
     
       
-    protected:
+    private:
     int Nx, Nt, Npath, Nrpath, Ntot; //lattice setup parameters
     int number_of_timesteps; //number of iterations for the ode solver
     double tau; //flowtime
