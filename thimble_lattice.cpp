@@ -1,7 +1,7 @@
 #include "thimble_lattice.h"
 //scalar field class to be incorporated into a system class (class composition)
 
-scalar_field::scalar_field(int x_dim, int t_dim) : occupation_number(new int[Nx]),
+scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupation_number(new int[x_dim]),
   Nx(x_dim), //member initialiser list 
   Nt(t_dim), 
   Npath(2*Nt), 
@@ -12,14 +12,16 @@ scalar_field::scalar_field(int x_dim, int t_dim) : occupation_number(new int[Nx]
   dt(0),
   dx(0),
   is_flowed(false),
-  field_0(new double[Nx]),
-  field_1(new double[Nx]),
-  base_field(new double[Ntot]), //configuring the lattice arrays
+  field_0(new dcomp[Nx]),
+  field_1(new dcomp[Nx]),
+  base_field(new dcomp[Ntot]), //configuring the lattice arrays
   flowed_field(new dcomp[Ntot]),
   positive_time_site(new int[Ntot]), //offset arrays to speed up computation
   positive_space_site(new int[Ntot]),
   negative_time_site(new int[Ntot]),
-  negative_space_site(new int[Ntot])
+  negative_space_site(new int[Ntot]),
+  my_rngPointer(rngPointer),
+  j(0,1)
 {
   //class constructor
   
@@ -51,7 +53,7 @@ scalar_field::~scalar_field()
     delete[] negative_space_site;
 }
 
-void scalar_field::set_occupation_number(int new_occupation_number[Nx])
+void scalar_field::set_occupation_number(int new_occupation_number[])
 {
   for (int i = 0; i < Nx; ++i)
   {
@@ -92,7 +94,7 @@ void scalar_field::initialise()
   for (int i = 0; i < Nx; ++i)
 	{
     p = i*2.*pi/(Nx*dx);
-    omega_p = pow(pow(p,2) + pow(mass,2),0.5);
+    omega_p = pow(pow(p,2) + pow(m,2),0.5);
     omega_tilde = acos(1 - pow(omega_p*dt,2)/2)/dt;
     Omega_p = sin(omega_p*dt)/dt; //configuring variables for this momentum
     if ((Nx - i)%Nx == 0)
