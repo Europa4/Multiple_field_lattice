@@ -25,7 +25,7 @@ const double pi = 3.14159265359;
 const double e = 2.71828182846;
 
 //forward defenitions******************************************************************
-class thimble_system;
+//class thimble_system;
 //*************************************************************************************
 
 
@@ -60,6 +60,7 @@ class scalar_field
 
     //interfaces
     double get_mass() {return m;};
+    double get_square_mass() {return squareMass;};
 
     //constructor and destructor 
     scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer);
@@ -68,9 +69,7 @@ class scalar_field
 
 class thimble_system
 {
-    
-      
-    protected:
+    private:
     int Nx, Nt, Npath, Nrpath, Ntot; //lattice setup parameters
     int number_of_timesteps; //number of iterations for the ode solver
     double tau; //flowtime

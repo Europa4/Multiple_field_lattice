@@ -100,14 +100,14 @@ void scalar_field::initialise()
     if ((Nx - i)%Nx == 0)
     {
         //corner mode case
-        field_0[i] += a[i]*pow(e,j*p*(i*dx))*pow(np[i] + 0.5,0.5)/pow(Omega_p,0.5);
-        field_1[i] += pow(e,j*p*(i*dx))*(a[i]*cos(omega_tilde*dt) + c[i]*Omega_p*dt)*pow(np[i] + 0.5,0.5)/pow(Omega_p,0.5);
+        field_0[i] += a[i]*pow(e,j*p*(i*dx))*pow(occupation_number[i] + 0.5,0.5)/pow(Omega_p,0.5);
+        field_1[i] += pow(e,j*p*(i*dx))*(a[i]*cos(omega_tilde*dt) + c[i]*Omega_p*dt)*pow(occupation_number[i] + 0.5,0.5)/pow(Omega_p,0.5);
     }
     else
     {
         //bulk mode case
-        field_0[i] += ((a[i] + j*b[i])*pow(e,j*p*(i*dx))/pow(2*Omega_p,0.5) + (c[i] - j*b[i])*pow(e,-1.*j*p*(i*dx))/pow(2*Omega_p,0.5))*pow(np[i] + 0.5,0.5);
-        field_1[i] += pow(e,j*p*(i*dx))*(a[i]*cos(omega_tilde*dt) + c[i]*Omega_p*dt)*pow(np[i] + 0.5,0.5)/pow(Omega_p,0.5);
+        field_0[i] += ((a[i] + j*b[i])*pow(e,j*p*(i*dx))/pow(2*Omega_p,0.5) + (c[i] - j*b[i])*pow(e,-1.*j*p*(i*dx))/pow(2*Omega_p,0.5))*pow(occupation_number[i] + 0.5,0.5);
+        field_1[i] += pow(e,j*p*(i*dx))*(a[i]*cos(omega_tilde*dt) + c[i]*Omega_p*dt)*pow(occupation_number[i] + 0.5,0.5)/pow(Omega_p,0.5);
     }
 
     field_0[i] = field_0[i]/V; //rescaling for the volume. hbar is taken to be one.
