@@ -1,9 +1,9 @@
-LIBS	= -I/usr/local/include/ -L/usr/lib64 -lgsl -lgslcblas -lboost_filesystem -lboost_system -lm -std=c++0x -O4
+LIBS	= -I/usr/local/include/ -L/usr/lib64 -lgsl -lgslcblas -lboost_filesystem -lboost_system -lm -std=c++0x
 CCOMP 	= mpic++
 LINKER 	= -o 
 CFLAGS 	= -c
 
-program     = ../evolve_exec
+program     = evolve_exec
 objects     = main.o initialise.o c_phi.o matrix_multiplication.o thimble_lattice.o
 
 $(program): $(objects)
