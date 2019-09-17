@@ -54,7 +54,7 @@ scalar_field::~scalar_field()
 }
 
 scalar_field::scalar_field(const scalar_field &obj)
-{
+{/*
   base_field = new dcomp;
   flowed_field = new dcomp;
   occupation_number = new int;
@@ -74,6 +74,7 @@ scalar_field::scalar_field(const scalar_field &obj)
   *positive_space_site = obj.positive_space_site;
   *negative_time_site = obj.negative_time_site;
   *negative_space_site = obj.negative_space_site;
+  */
 }
 
 void scalar_field::set_occupation_number(int new_occupation_number[])
@@ -220,7 +221,9 @@ thimble_system::~thimble_system()
 void thimble_system::add_scalar_field()
 {
   //scalar_field phi(Nx, Nt, my_rngPointer);
-  scalar_field* phi = new scalar_field(Nx, Nt, my_rngPointer);
-  scalars.push_back(*phi);
+  //scalar_field* phi = new scalar_field(Nx, Nt, my_rngPointer);
+  //scalars.push_back(*phi);
   //delete phi;
+
+  scalars.emplace_back(phi(Nx, Nt, my_rngPointer));
 }
