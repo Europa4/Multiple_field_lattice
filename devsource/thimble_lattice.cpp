@@ -132,7 +132,7 @@ void scalar_field::initialise()
 	  base_field[Nrpath*(k + 1) - i - 1] = base_field[Nrpath*k + i + 1]; //sets up the return leg of the contour
 	}
   
-
+    }
   //clearing the classical data from the first site
   for(int i = 0; i < Nx; ++i)
   {
@@ -173,7 +173,7 @@ void scalar_field::initialise()
 
 //*************************************thimble_system***************************
 
-thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed) : Nx(x_dim), Nt(t_dim), tau(flow_time), Npath(2*Nt), Nrpath(Npath - 4), Ntot(Nrpath*Nx), phi(Nx, Nt), rng_seed(seed)
+thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed) : Nx(x_dim), Nt(t_dim), tau(flow_time), Npath(2*Nt), Nrpath(Npath - 4), Ntot(Nrpath*Nx), rng_seed(seed)
 {
     //thimble system constructor
     const gsl_rng_type * T;

@@ -21,7 +21,7 @@ c_phi.o: c_phi.cpp Prot.h
 matrix_multiplication.o: matrix_multiplication.cpp Prot.h
 	mpic++ -c matrix_multiplication.cpp $(LIBS)
 
-thimble_lattice.o: thimble_lattice.cpp thimble_lattice.h Prot.h
+thimble_lattice.o: thimble_lattice.cpp thimble_lattice.h
 	mpic++ -c thimble_lattice.cpp $(LIBS)
 
 clean:

@@ -53,16 +53,7 @@ int main(int argc, char **argv)
   c_phi phi(1.0, 0.5, 0.0, 0.1, seed);
   phi.simulate(pow(10,3), pow(10,5), 1, 50);
   */
-
- /*
- scalar_field phi(10, 1);
- phi.set_mass(1.);
- phi.initialise();
- for (int i = 0; i < 16; ++i)
- {
-   printf("phi[%i] = %f \n", i, phi.base_field[i]);
- }
-  */
+ 
 
   MPI_Finalize(); //closing the MPI enviroment
     

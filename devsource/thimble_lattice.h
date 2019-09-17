@@ -79,7 +79,7 @@ class thimble_system
     public:
 
     //constructor and destructor
-    thimble_system(int x_dim, int t_dim, double flow_time);
+    thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed);
     ~thimble_system();
     
     //friendship declaration
