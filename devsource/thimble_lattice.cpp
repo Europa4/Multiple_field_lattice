@@ -182,6 +182,7 @@ thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsi
     my_rngPointer = gsl_rng_alloc (T);
     gsl_rng_set(my_rngPointer, seed);
     
+    
     //determining the number of timesteps for the ODE solvers from the flow time  
     h = 0.02; //sets the base size 
     number_of_timesteps = int(ceil(tau/h)); //calculates how many steps this corresponds to (overshooting in the case of it not being exact)
@@ -191,4 +192,12 @@ thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsi
 thimble_system::~thimble_system()
 {
   gsl_rng_free(my_rngPointer);
+}
+
+void thimble_system::add_scalar_field()
+{
+  //scalar_field phi(Nx, Nt, my_rngPointer);
+  scalar_field* phi = new scalar_field(Nx, Nt, my_rngPointer);
+  scalars.push_back(*phi);
+  //delete phi;
 }
