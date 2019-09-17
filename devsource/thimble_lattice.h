@@ -61,9 +61,10 @@ class scalar_field
     double get_mass() {return m;};
     double get_square_mass() {return squareMass;};
 
-    //constructor and destructor 
+    //constructor, destructor and copy constructor
     scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer);
     ~scalar_field();
+    scalar_field(const scalar_field &obj);
 };
 
 class thimble_system
