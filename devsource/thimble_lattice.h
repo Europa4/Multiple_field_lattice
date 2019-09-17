@@ -24,14 +24,10 @@ typedef std::complex<double> dcomp;
 const double pi = 3.14159265359;
 const double e = 2.71828182846;
 
-<<<<<<< HEAD:devsource/thimble_lattice.h
-=======
 //forward defenitions******************************************************************
 //class thimble_system;
 //*************************************************************************************
 
-
->>>>>>> master:thimble_lattice.h
 class scalar_field
 {
     private:
@@ -72,11 +68,6 @@ class scalar_field
 
 class thimble_system
 {
-<<<<<<< HEAD:devsource/thimble_lattice.h
-    
-      
-=======
->>>>>>> master:thimble_lattice.h
     private:
     int Nx, Nt, Npath, Nrpath, Ntot; //lattice setup parameters
     int number_of_timesteps; //number of iterations for the ode solver
