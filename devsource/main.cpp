@@ -53,9 +53,13 @@ int main(int argc, char **argv)
   c_phi phi(1.0, 0.5, 0.0, 0.1, seed);
   phi.simulate(pow(10,3), pow(10,5), 1, 50);
   */
+  thimble_system sys(1, 10, 1.0, 5);
+  sys.add_scalar_field();
+  sys.scalars[0].set_mass(1.0);
+  printf("is empty = %i \n",sys.scalars.empty());
+  printf("mass of the scalar field = %f \n", sys.scalars[0].get_mass());
  
 
   MPI_Finalize(); //closing the MPI enviroment
-    
   return 0;
 }

@@ -53,6 +53,46 @@ scalar_field::~scalar_field()
     delete[] negative_space_site;
 }
 
+scalar_field::scalar_field(const scalar_field &obj) : occupation_number(new int[obj.Nx]), //object copy constructor
+Nx(obj.Nx), //*large* member initalisation list 
+Nt(obj.Nt),
+Npath(obj.Npath),
+Nrpath(obj.Nrpath),
+Ntot(obj.Ntot),
+m(obj.m),
+squareMass(obj.squareMass),
+dt(obj.dt),
+dx(obj.dx),
+is_flowed(obj.is_flowed),
+field_0(new dcomp[obj.Nx]),
+field_1(new dcomp[obj.Nx]),
+positive_time_site(new int[obj.Ntot]),
+positive_space_site(new int[obj.Ntot]),
+negative_time_site(new int[obj.Ntot]),
+negative_space_site(new int[obj.Ntot]),
+my_rngPointer(obj.my_rngPointer),
+j(obj.j),
+base_field(new dcomp[obj.Ntot]),
+flowed_field(new dcomp[obj.Ntot])
+{
+  for (int i = 0; i < Nx; ++i)
+  {
+    occupation_number[i] = obj.occupation_number[i]; //setting values for the arrays that are copied over from the original object
+    field_0[i] = obj.field_0[i];
+    field_1[i] = obj.field_1[i];
+  }
+  
+  for(int i = 0; i < Ntot; ++i)
+  {
+    positive_time_site[i] = obj.positive_time_site[i];
+    positive_space_site[i] = obj.positive_space_site[i];
+    negative_time_site[i] = obj.negative_time_site[i];
+    negative_space_site[i] = obj.negative_space_site[i];
+    base_field[i] = obj.base_field[i];
+    flowed_field[i] = obj.flowed_field[i];
+  }
+}
+
 void scalar_field::set_occupation_number(int new_occupation_number[])
 {
   for (int i = 0; i < Nx; ++i)
@@ -182,6 +222,7 @@ thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsi
     my_rngPointer = gsl_rng_alloc (T);
     gsl_rng_set(my_rngPointer, seed);
     
+    
     //determining the number of timesteps for the ODE solvers from the flow time  
     h = 0.02; //sets the base size 
     number_of_timesteps = int(ceil(tau/h)); //calculates how many steps this corresponds to (overshooting in the case of it not being exact)
@@ -191,4 +232,14 @@ thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsi
 thimble_system::~thimble_system()
 {
   gsl_rng_free(my_rngPointer);
+}
+
+void thimble_system::add_scalar_field()
+{
+  //scalar_field phi(Nx, Nt, my_rngPointer);
+  //scalar_field* phi = new scalar_field(Nx, Nt, my_rngPointer);
+  //scalars.push_back(*phi);
+  //delete phi;
+
+  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
 }

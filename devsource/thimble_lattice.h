@@ -61,23 +61,29 @@ class scalar_field
     double get_mass() {return m;};
     double get_square_mass() {return squareMass;};
 
-    //constructor and destructor 
+    //constructor, destructor and copy constructor
     scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer);
     ~scalar_field();
+    scalar_field(const scalar_field &obj);
 };
 
 class thimble_system
 {
-    private:
+    protected:
     int Nx, Nt, Npath, Nrpath, Ntot; //lattice setup parameters
     int number_of_timesteps; //number of iterations for the ode solver
     double tau; //flowtime
     double h; //ode step size
     unsigned long int rng_seed;
     gsl_rng * my_rngPointer; //rng pointer for the system/simulation
+    
 
     public:
-
+    std::vector<scalar_field> scalars; //the scalar fields of the simulation SHOULDN'T BE PUBLIC, ONLY IS FOR TESTING
+    
+    void add_scalar_field();
+    //void add_scalar_field(double mass);
+    
     //constructor and destructor
     thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed);
     ~thimble_system();
