@@ -35,6 +35,8 @@ class scalar_field
     int Nx, Nt, Npath, Nrpath, Ntot;
     double m, squareMass; //field mass
     double dt, dx; //lattice spacings
+    double* path; //sign of the path around the contour
+    double* path_offset;
     bool is_flowed;
     dcomp* field_0;
     dcomp* field_1; //sites 0 and 1, which are integrated out of the full simulation
@@ -46,6 +48,7 @@ class scalar_field
     dcomp j;
 
     protected:
+    dcomp free_action(int site);
 
     public:
     
@@ -82,7 +85,7 @@ class thimble_system
     std::vector<scalar_field> scalars; //the scalar fields of the simulation SHOULDN'T BE PUBLIC, ONLY IS FOR TESTING
     
     void add_scalar_field();
-    //void add_scalar_field(double mass);
+    void add_scalar_field(double mass);
     
     //constructor and destructor
     thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed);

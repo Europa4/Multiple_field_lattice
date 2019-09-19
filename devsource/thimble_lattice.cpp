@@ -11,6 +11,8 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   squareMass(0), 
   dt(0),
   dx(0),
+  path(new double[Nrpath]),
+  path_offset(new double[Nrpath]),
   is_flowed(false),
   field_0(new dcomp[Nx]),
   field_1(new dcomp[Nx]),
@@ -37,6 +39,18 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
     //zero initialising the occupation number
     occupation_number[i] = 0;
   }
+
+  for (int i = 0; i < (int) (Nrpath/2); ++i)
+  {
+    path[i] = dt;
+    path[i + (int)(Nrpath/2)] = -1.*dt;
+  }
+
+  path_offset[0] = -1.*dt;
+  for (int i = 0; i < Nrpath; ++i)
+  {
+    path_offset[i + 1] = path[i];
+  }
 }
 
 scalar_field::~scalar_field()
@@ -51,6 +65,8 @@ scalar_field::~scalar_field()
     delete[] positive_space_site;
     delete[] negative_time_site;
     delete[] negative_space_site;
+    delete[] path;
+    delete[] path_offset;
 }
 
 scalar_field::scalar_field(const scalar_field &obj) : occupation_number(new int[obj.Nx]), //object copy constructor
@@ -63,6 +79,8 @@ m(obj.m),
 squareMass(obj.squareMass),
 dt(obj.dt),
 dx(obj.dx),
+path(new double[obj.Nrpath]),
+path_offset(new double[obj.Nrpath]),
 is_flowed(obj.is_flowed),
 field_0(new dcomp[obj.Nx]),
 field_1(new dcomp[obj.Nx]),
@@ -90,6 +108,12 @@ flowed_field(new dcomp[obj.Ntot])
     negative_space_site[i] = obj.negative_space_site[i];
     base_field[i] = obj.base_field[i];
     flowed_field[i] = obj.flowed_field[i];
+  }
+
+  for (int i = 0; i < Nrpath; ++i)
+  {
+    path[i] = obj.path[i];
+    path_offset[i] = obj.path_offset[i];
   }
 }
 
@@ -211,6 +235,11 @@ void scalar_field::initialise()
   }
 }
 
+dcomp scalar_field::free_action(int site)
+{
+
+}
+
 //*************************************thimble_system***************************
 
 thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed) : Nx(x_dim), Nt(t_dim), tau(flow_time), Npath(2*Nt), Nrpath(Npath - 4), Ntot(Nrpath*Nx), rng_seed(seed)
@@ -236,10 +265,11 @@ thimble_system::~thimble_system()
 
 void thimble_system::add_scalar_field()
 {
-  //scalar_field phi(Nx, Nt, my_rngPointer);
-  //scalar_field* phi = new scalar_field(Nx, Nt, my_rngPointer);
-  //scalars.push_back(*phi);
-  //delete phi;
-
   scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
+}
+
+void thimble_system::add_scalar_field(double mass)
+{
+  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
+  scalars[scalars.size() - 1].set_mass(mass);
 }
