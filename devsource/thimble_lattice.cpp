@@ -53,28 +53,44 @@ scalar_field::~scalar_field()
     delete[] negative_space_site;
 }
 
-scalar_field::scalar_field(const scalar_field &obj)
-{/*
-  base_field = new dcomp;
-  flowed_field = new dcomp;
-  occupation_number = new int;
-  field_0 = new dcomp;
-  field_1 = new dcomp;
-  positive_time_site = new int;
-  positive_space_site = new int;
-  negative_time_site = new int;
-  negative_space_site = new int;
-
-  *base_field = obj.base_field;
-  *flowed_field = obj.flowed_field;
-  *occupation_number = obj.occupation_number;
-  *field_0 = obj.field_0;
-  *field_1 = obj.field_1;
-  *positive_time_site = obj.positive_time_site;
-  *positive_space_site = obj.positive_space_site;
-  *negative_time_site = obj.negative_time_site;
-  *negative_space_site = obj.negative_space_site;
-  */
+scalar_field::scalar_field(const scalar_field &obj) : occupation_number(new int[obj.Nx]), //object copy constructor
+Nx(obj.Nx), //*large* member initalisation list 
+Nt(obj.Nt),
+Npath(obj.Npath),
+Nrpath(obj.Nrpath),
+Ntot(obj.Ntot),
+m(obj.m),
+squareMass(obj.squareMass),
+dt(obj.dt),
+dx(obj.dx),
+is_flowed(obj.is_flowed),
+field_0(new dcomp[obj.Nx]),
+field_1(new dcomp[obj.Nx]),
+positive_time_site(new int[obj.Ntot]),
+positive_space_site(new int[obj.Ntot]),
+negative_time_site(new int[obj.Ntot]),
+negative_space_site(new int[obj.Ntot]),
+my_rngPointer(obj.my_rngPointer),
+j(obj.j),
+base_field(new dcomp[obj.Ntot]),
+flowed_field(new dcomp[obj.Ntot])
+{
+  for (int i = 0; i < Nx; ++i)
+  {
+    occupation_number[i] = obj.occupation_number[i]; //setting values for the arrays that are copied over from the original object
+    field_0[i] = obj.field_0[i];
+    field_1[i] = obj.field_1[i];
+  }
+  
+  for(int i = 0; i < Ntot; ++i)
+  {
+    positive_time_site[i] = obj.positive_time_site[i];
+    positive_space_site[i] = obj.positive_space_site[i];
+    negative_time_site[i] = obj.negative_time_site[i];
+    negative_space_site[i] = obj.negative_space_site[i];
+    base_field[i] = obj.base_field[i];
+    flowed_field[i] = obj.flowed_field[i];
+  }
 }
 
 void scalar_field::set_occupation_number(int new_occupation_number[])
@@ -225,5 +241,5 @@ void thimble_system::add_scalar_field()
   //scalars.push_back(*phi);
   //delete phi;
 
-  scalars.emplace_back(phi(Nx, Nt, my_rngPointer));
+  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
 }

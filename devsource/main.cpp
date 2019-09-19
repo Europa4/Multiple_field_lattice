@@ -55,7 +55,9 @@ int main(int argc, char **argv)
   */
   thimble_system sys(1, 10, 1.0, 5);
   sys.add_scalar_field();
-  //printf("is empty = %i \n",sys.scalars.empty());
+  sys.scalars[0].set_mass(1.0);
+  printf("is empty = %i \n",sys.scalars.empty());
+  printf("mass of the scalar field = %f \n", sys.scalars[0].get_mass());
  
 
   MPI_Finalize(); //closing the MPI enviroment
