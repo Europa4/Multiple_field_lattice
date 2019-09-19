@@ -1,2 +1,3 @@
 Error codes:
 5	Invalid mass set
+6   Attempting to add a new field after adding interactions. Please add all fields before setting interactions.

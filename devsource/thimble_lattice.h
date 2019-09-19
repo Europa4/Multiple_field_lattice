@@ -47,11 +47,16 @@ class scalar_field
     gsl_rng * my_rngPointer;
     dcomp j;
 
+    //private assigment constructor
+    scalar_field& operator = (const scalar_field &t)
+    {
+        return *this;
+    }
+
     protected:
     dcomp free_action(int site);
 
     public:
-    
     dcomp* base_field;
     dcomp* flowed_field;
 

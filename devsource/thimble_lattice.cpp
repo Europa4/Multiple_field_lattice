@@ -237,7 +237,10 @@ void scalar_field::initialise()
 
 dcomp scalar_field::free_action(int site)
 {
-
+  //Standard P^2 - m^2 action
+  dcomp S = pow(flowed_field[positive_time_site[site]] - flowed_field[site], 2)/(2.*path[i]) 
+  - (((path[site] + path_offset[site])/2)*(pow(flowed_field[positive_space_site[site]] - flowed_field[site], 2))/(2*pow(dx,2)) + squareMass*pow(flowed_field[site], 2));
+  return S;
 }
 
 //*************************************thimble_system***************************
@@ -250,7 +253,6 @@ thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsi
     T = gsl_rng_default;
     my_rngPointer = gsl_rng_alloc (T);
     gsl_rng_set(my_rngPointer, seed);
-    
     
     //determining the number of timesteps for the ODE solvers from the flow time  
     h = 0.02; //sets the base size 
