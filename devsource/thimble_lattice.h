@@ -28,6 +28,22 @@ const double e = 2.71828182846;
 //class thimble_system;
 //*************************************************************************************
 
+class interaction
+{
+    private:
+    double coupling;
+    <vector int> powers;
+
+    protected:
+
+    public:
+    dcomp base(int site, *thimble_system current_system);
+
+
+    //constructor
+    interaction(double Coupling, <vector int> Powers);
+}
+
 class scalar_field
 {
     private:
@@ -63,7 +79,10 @@ class scalar_field
     //bulk of the code is given in scalar_field.cpp
     void initialise();
     void set_occupation_number(int new_occupation_number[]);
+    void set_occupation_number(int new_occupation_number);
     void set_mass(double new_mass);
+    void set_dx(double new_dx) {dx = new_dx;};
+    void set_dt(double new_dt);
 
     //interfaces
     double get_mass() {return m;};

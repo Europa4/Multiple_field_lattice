@@ -1,6 +1,21 @@
 #include "thimble_lattice.h"
-//scalar field class to be incorporated into a system class (class composition)
 
+//interaction class for mediating between fields
+interaction::interaction(double Coupling, <vector int> Powers) : coupling(Coupling), powers(Powers) 
+{
+
+}
+
+dcomp interaction::base(int site, *thimble_system current_system)
+{
+  for(int i = 0; i < powers.size(); ++i)
+  {
+    //TODO: sum over all the interaction terms
+  }
+}
+
+
+//scalar field class to be incorporated into a system class (class composition)*******************************************************
 scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupation_number(new int[x_dim]),
   Nx(x_dim), //member initialiser list 
   Nt(t_dim), 
@@ -9,8 +24,8 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   Ntot(Nrpath*Nx), 
   m(0),
   squareMass(0), 
-  dt(0),
-  dx(0),
+  dt(0.75),
+  dx(1),
   path(new double[Nrpath]),
   path_offset(new double[Nrpath]),
   is_flowed(false),
@@ -125,6 +140,14 @@ void scalar_field::set_occupation_number(int new_occupation_number[])
   }
 }
 
+void scalar_field::set_occupation_number(int new_occupation_number)
+{
+  for(int i = 0; i < Nx; ++i)
+  {
+    occupation_number[i] = new_occupation_number;
+  }
+}
+
 void scalar_field::set_mass(double new_mass)
 {
   //allows the user to set a new mass for the scalar field
@@ -178,25 +201,26 @@ void scalar_field::initialise()
     field_1[i] = field_1[i]/V;
 
     //manual force to check values
-    field_0[i] = 0.8;
-    field_1[i] = 1.0;
+    //field_0[i] = 0.8;
+    //field_1[i] = 1.0;
   }
   
-    for(int k = 0; k < Nx; ++k)
-    {
-        base_field[0 + Nrpath*k] = field_1[k];
-        base_field[1 + Nrpath*k] = -1.0*dt*dt*(squareMass*base_field[0 + Nrpath*k] + 2.0*base_field[0 + Nrpath*k] - field_0[k]);
-        for (int i = 1; i < (int) (Nrpath/2); ++i)
-        {
-          base_field[i + Nrpath*k + 1] = -dt*dt*(squareMass*base_field[i + Nrpath*k] + 2.0*base_field[i + Nrpath*k] - base_field[i + Nrpath*k - 1]);
-        }
-        
-        for(int i = 0; i < (int) (Nrpath/2); ++i)
-	{
-	  base_field[Nrpath*(k + 1) - i - 1] = base_field[Nrpath*k + i + 1]; //sets up the return leg of the contour
-	}
-  
-    }
+  for(int k = 0; k < Nx; ++k)
+  {
+      base_field[0 + Nrpath*k] = field_1[k];
+      base_field[1 + Nrpath*k] = -1.0*dt*dt*(squareMass*base_field[0 + Nrpath*k]) + 2.0*base_field[0 + Nrpath*k] - field_0[k];
+      for (int i = 1; i < (int) (Nrpath/2); ++i)
+      {
+        base_field[i + Nrpath*k + 1] = -dt*dt*squareMass*base_field[i + Nrpath*k] + 2.0*base_field[i + Nrpath*k] - base_field[i + Nrpath*k - 1];
+      }
+      
+      for(int i = 0; i < (int) (Nrpath/2); ++i)
+      {
+        base_field[Nrpath*(k + 1) - i - 1] = base_field[Nrpath*k + i + 1]; //sets up the return leg of the contour
+      }
+
+  }
+
   //clearing the classical data from the first site
   for(int i = 0; i < Nx; ++i)
   {
@@ -204,6 +228,7 @@ void scalar_field::initialise()
   }
 
   //setting up the co-ordinate shifted arrays. Could combine them, but this won't be called much, so the legibility is prioritised over speed
+  //I imagine the O3 flag for g++ automatically tidies them up anyway
   for (int k = 0; k < Nx; ++k)
   {
     for (int i = 0; i < Nrpath - 1; ++i)
@@ -238,9 +263,18 @@ void scalar_field::initialise()
 dcomp scalar_field::free_action(int site)
 {
   //Standard P^2 - m^2 action
-  dcomp S = pow(flowed_field[positive_time_site[site]] - flowed_field[site], 2)/(2.*path[i]) 
+  dcomp S = pow(flowed_field[positive_time_site[site]] - flowed_field[site], 2)/(2.*path[site]) 
   - (((path[site] + path_offset[site])/2)*(pow(flowed_field[positive_space_site[site]] - flowed_field[site], 2))/(2*pow(dx,2)) + squareMass*pow(flowed_field[site], 2));
   return S;
+}
+
+void scalar_field::set_dt(double new_dt);
+{
+  for (int i = 0; i < Nrpath; ++i)
+  {
+    path[i] *= new_dt/dt;
+  }
+  dt = new_dt;
 }
 
 //*************************************thimble_system***************************
