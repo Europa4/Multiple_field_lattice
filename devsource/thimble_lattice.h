@@ -37,11 +37,11 @@ class interaction
     protected:
 
     public:
-    dcomp base(int site, *thimble_system current_system);
+    dcomp base(int site, thimble_system* current_system);
 
 
     //constructor
-    interaction(double Coupling, <vector int> Powers);
+    interaction(double Coupling, vector<int> Powers);
 }
 
 class scalar_field
