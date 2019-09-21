@@ -6,7 +6,7 @@ interaction::interaction(double Coupling, <vector int> Powers) : coupling(Coupli
 
 }
 
-dcomp interaction::base(int site, *thimble_system current_system)
+dcomp interaction::base(int site, thimble_system* current_system)
 {
   dcomp interaction_contribution = coupling;
   for(int i = 0; i < powers.size(); ++i)
