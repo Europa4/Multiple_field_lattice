@@ -54,8 +54,12 @@ int main(int argc, char **argv)
   phi.simulate(pow(10,3), pow(10,5), 1, 50);
   */
   thimble_system sys(1, 10, 1.0, 5);
-  sys.add_scalar_field();
-  //printf("is empty = %i \n",sys.scalars.empty());
+  sys.add_scalar_field(1.0);
+  sys.scalars[0].initialise();
+  for (int i = 0; i < 16; ++i)
+  {
+    printf("(main) phi[%i] = %f \n", i, sys.scalars[0].base_field[i]);
+  }
  
 
   MPI_Finalize(); //closing the MPI enviroment

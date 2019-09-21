@@ -1,6 +1,23 @@
 #include "thimble_lattice.h"
-//scalar field class to be incorporated into a system class (class composition)
 
+//interaction class for mediating between fields
+interaction::interaction(double Coupling, <vector int> Powers) : coupling(Coupling), powers(Powers) 
+{
+
+}
+
+dcomp interaction::base(int site, *thimble_system current_system)
+{
+  dcomp interaction_contribution = coupling;
+  for(int i = 0; i < powers.size(); ++i)
+  {
+    interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+  }
+  return interaction_contribution;
+}
+
+
+//scalar field class to be incorporated into a system class (class composition)*******************************************************
 scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupation_number(new int[x_dim]),
   Nx(x_dim), //member initialiser list 
   Nt(t_dim), 
@@ -9,8 +26,10 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   Ntot(Nrpath*Nx), 
   m(0),
   squareMass(0), 
-  dt(0),
-  dx(0),
+  dt(0.75),
+  dx(1),
+  path(new double[Nrpath]),
+  path_offset(new double[Nrpath]),
   is_flowed(false),
   field_0(new dcomp[Nx]),
   field_1(new dcomp[Nx]),
@@ -37,6 +56,18 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
     //zero initialising the occupation number
     occupation_number[i] = 0;
   }
+
+  for (int i = 0; i < (int) (Nrpath/2); ++i)
+  {
+    path[i] = dt;
+    path[i + (int)(Nrpath/2)] = -1.*dt;
+  }
+
+  path_offset[0] = -1.*dt;
+  for (int i = 0; i < Nrpath; ++i)
+  {
+    path_offset[i + 1] = path[i];
+  }
 }
 
 scalar_field::~scalar_field()
@@ -51,30 +82,56 @@ scalar_field::~scalar_field()
     delete[] positive_space_site;
     delete[] negative_time_site;
     delete[] negative_space_site;
+    delete[] path;
+    delete[] path_offset;
 }
 
-scalar_field::scalar_field(const scalar_field &obj)
-{/*
-  base_field = new dcomp;
-  flowed_field = new dcomp;
-  occupation_number = new int;
-  field_0 = new dcomp;
-  field_1 = new dcomp;
-  positive_time_site = new int;
-  positive_space_site = new int;
-  negative_time_site = new int;
-  negative_space_site = new int;
+scalar_field::scalar_field(const scalar_field &obj) : occupation_number(new int[obj.Nx]), //object copy constructor
+Nx(obj.Nx), //*large* member initalisation list 
+Nt(obj.Nt),
+Npath(obj.Npath),
+Nrpath(obj.Nrpath),
+Ntot(obj.Ntot),
+m(obj.m),
+squareMass(obj.squareMass),
+dt(obj.dt),
+dx(obj.dx),
+path(new double[obj.Nrpath]),
+path_offset(new double[obj.Nrpath]),
+is_flowed(obj.is_flowed),
+field_0(new dcomp[obj.Nx]),
+field_1(new dcomp[obj.Nx]),
+positive_time_site(new int[obj.Ntot]),
+positive_space_site(new int[obj.Ntot]),
+negative_time_site(new int[obj.Ntot]),
+negative_space_site(new int[obj.Ntot]),
+my_rngPointer(obj.my_rngPointer),
+j(obj.j),
+base_field(new dcomp[obj.Ntot]),
+flowed_field(new dcomp[obj.Ntot])
+{
+  for (int i = 0; i < Nx; ++i)
+  {
+    occupation_number[i] = obj.occupation_number[i]; //setting values for the arrays that are copied over from the original object
+    field_0[i] = obj.field_0[i];
+    field_1[i] = obj.field_1[i];
+  }
+  
+  for(int i = 0; i < Ntot; ++i)
+  {
+    positive_time_site[i] = obj.positive_time_site[i];
+    positive_space_site[i] = obj.positive_space_site[i];
+    negative_time_site[i] = obj.negative_time_site[i];
+    negative_space_site[i] = obj.negative_space_site[i];
+    base_field[i] = obj.base_field[i];
+    flowed_field[i] = obj.flowed_field[i];
+  }
 
-  *base_field = obj.base_field;
-  *flowed_field = obj.flowed_field;
-  *occupation_number = obj.occupation_number;
-  *field_0 = obj.field_0;
-  *field_1 = obj.field_1;
-  *positive_time_site = obj.positive_time_site;
-  *positive_space_site = obj.positive_space_site;
-  *negative_time_site = obj.negative_time_site;
-  *negative_space_site = obj.negative_space_site;
-  */
+  for (int i = 0; i < Nrpath; ++i)
+  {
+    path[i] = obj.path[i];
+    path_offset[i] = obj.path_offset[i];
+  }
 }
 
 void scalar_field::set_occupation_number(int new_occupation_number[])
@@ -82,6 +139,14 @@ void scalar_field::set_occupation_number(int new_occupation_number[])
   for (int i = 0; i < Nx; ++i)
   {
     occupation_number[i] = new_occupation_number[i];
+  }
+}
+
+void scalar_field::set_occupation_number(int new_occupation_number)
+{
+  for(int i = 0; i < Nx; ++i)
+  {
+    occupation_number[i] = new_occupation_number;
   }
 }
 
@@ -138,25 +203,26 @@ void scalar_field::initialise()
     field_1[i] = field_1[i]/V;
 
     //manual force to check values
-    field_0[i] = 0.8;
-    field_1[i] = 1.0;
+    //field_0[i] = 0.8;
+    //field_1[i] = 1.0;
   }
   
-    for(int k = 0; k < Nx; ++k)
-    {
-        base_field[0 + Nrpath*k] = field_1[k];
-        base_field[1 + Nrpath*k] = -1.0*dt*dt*(squareMass*base_field[0 + Nrpath*k] + 2.0*base_field[0 + Nrpath*k] - field_0[k]);
-        for (int i = 1; i < (int) (Nrpath/2); ++i)
-        {
-          base_field[i + Nrpath*k + 1] = -dt*dt*(squareMass*base_field[i + Nrpath*k] + 2.0*base_field[i + Nrpath*k] - base_field[i + Nrpath*k - 1]);
-        }
-        
-        for(int i = 0; i < (int) (Nrpath/2); ++i)
-	{
-	  base_field[Nrpath*(k + 1) - i - 1] = base_field[Nrpath*k + i + 1]; //sets up the return leg of the contour
-	}
-  
-    }
+  for(int k = 0; k < Nx; ++k)
+  {
+      base_field[0 + Nrpath*k] = field_1[k];
+      base_field[1 + Nrpath*k] = -1.0*dt*dt*(squareMass*base_field[0 + Nrpath*k]) + 2.0*base_field[0 + Nrpath*k] - field_0[k];
+      for (int i = 1; i < (int) (Nrpath/2); ++i)
+      {
+        base_field[i + Nrpath*k + 1] = -dt*dt*squareMass*base_field[i + Nrpath*k] + 2.0*base_field[i + Nrpath*k] - base_field[i + Nrpath*k - 1];
+      }
+      
+      for(int i = 0; i < (int) (Nrpath/2); ++i)
+      {
+        base_field[Nrpath*(k + 1) - i - 1] = base_field[Nrpath*k + i + 1]; //sets up the return leg of the contour
+      }
+
+  }
+
   //clearing the classical data from the first site
   for(int i = 0; i < Nx; ++i)
   {
@@ -164,6 +230,7 @@ void scalar_field::initialise()
   }
 
   //setting up the co-ordinate shifted arrays. Could combine them, but this won't be called much, so the legibility is prioritised over speed
+  //I imagine the O3 flag for g++ automatically tidies them up anyway
   for (int k = 0; k < Nx; ++k)
   {
     for (int i = 0; i < Nrpath - 1; ++i)
@@ -195,6 +262,23 @@ void scalar_field::initialise()
   }
 }
 
+dcomp scalar_field::free_action(int site)
+{
+  //Standard P^2 - m^2 action
+  dcomp S = pow(flowed_field[positive_time_site[site]] - flowed_field[site], 2)/(2.*path[site]) 
+  - (((path[site] + path_offset[site])/2)*(pow(flowed_field[positive_space_site[site]] - flowed_field[site], 2))/(2*pow(dx,2)) + squareMass*pow(flowed_field[site], 2));
+  return S;
+}
+
+void scalar_field::set_dt(double new_dt);
+{
+  for (int i = 0; i < Nrpath; ++i)
+  {
+    path[i] *= new_dt/dt;
+  }
+  dt = new_dt;
+}
+
 //*************************************thimble_system***************************
 
 thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed) : Nx(x_dim), Nt(t_dim), tau(flow_time), Npath(2*Nt), Nrpath(Npath - 4), Ntot(Nrpath*Nx), rng_seed(seed)
@@ -205,7 +289,6 @@ thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsi
     T = gsl_rng_default;
     my_rngPointer = gsl_rng_alloc (T);
     gsl_rng_set(my_rngPointer, seed);
-    
     
     //determining the number of timesteps for the ODE solvers from the flow time  
     h = 0.02; //sets the base size 
@@ -220,10 +303,11 @@ thimble_system::~thimble_system()
 
 void thimble_system::add_scalar_field()
 {
-  //scalar_field phi(Nx, Nt, my_rngPointer);
-  //scalar_field* phi = new scalar_field(Nx, Nt, my_rngPointer);
-  //scalars.push_back(*phi);
-  //delete phi;
+  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
+}
 
-  scalars.emplace_back(phi(Nx, Nt, my_rngPointer));
+void thimble_system::add_scalar_field(double mass)
+{
+  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
+  scalars[scalars.size() - 1].set_mass(mass);
 }

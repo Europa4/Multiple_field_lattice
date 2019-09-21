@@ -28,6 +28,22 @@ const double e = 2.71828182846;
 //class thimble_system;
 //*************************************************************************************
 
+class interaction
+{
+    private:
+    double coupling;
+    <vector int> powers;
+
+    protected:
+
+    public:
+    dcomp base(int site, *thimble_system current_system);
+
+
+    //constructor
+    interaction(double Coupling, <vector int> Powers);
+}
+
 class scalar_field
 {
     private:
@@ -35,6 +51,8 @@ class scalar_field
     int Nx, Nt, Npath, Nrpath, Ntot;
     double m, squareMass; //field mass
     double dt, dx; //lattice spacings
+    double* path; //sign of the path around the contour
+    double* path_offset;
     bool is_flowed;
     dcomp* field_0;
     dcomp* field_1; //sites 0 and 1, which are integrated out of the full simulation
@@ -45,17 +63,26 @@ class scalar_field
     gsl_rng * my_rngPointer;
     dcomp j;
 
+    //private assigment constructor
+    scalar_field& operator = (const scalar_field &t)
+    {
+        return *this;
+    }
+
     protected:
+    dcomp free_action(int site);
 
     public:
-    
     dcomp* base_field;
     dcomp* flowed_field;
 
     //bulk of the code is given in scalar_field.cpp
     void initialise();
     void set_occupation_number(int new_occupation_number[]);
+    void set_occupation_number(int new_occupation_number);
     void set_mass(double new_mass);
+    void set_dx(double new_dx) {dx = new_dx;};
+    void set_dt(double new_dt);
 
     //interfaces
     double get_mass() {return m;};
@@ -82,7 +109,7 @@ class thimble_system
     std::vector<scalar_field> scalars; //the scalar fields of the simulation SHOULDN'T BE PUBLIC, ONLY IS FOR TESTING
     
     void add_scalar_field();
-    //void add_scalar_field(double mass);
+    void add_scalar_field(double mass);
     
     //constructor and destructor
     thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed);
