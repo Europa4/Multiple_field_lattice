@@ -8,10 +8,12 @@ interaction::interaction(double Coupling, <vector int> Powers) : coupling(Coupli
 
 dcomp interaction::base(int site, *thimble_system current_system)
 {
+  dcomp interaction_contribution = coupling;
   for(int i = 0; i < powers.size(); ++i)
   {
-    //TODO: sum over all the interaction terms
+    interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
   }
+  return interaction_contribution;
 }
 
 
