@@ -32,7 +32,7 @@ class interaction
 {
     private:
     double coupling;
-    <vector int> powers;
+    vector<int> powers;
 
     protected:
 
