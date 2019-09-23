@@ -1,5 +1,16 @@
 #include "thimble_lattice.h"
 
+//simple dirac delta function
+template <class T>
+T dd(T i, T j)
+{
+  T Delta(0);
+  if (i == j)
+  {
+    Delta = 1;
+  }
+  return Delta;
+}
 //interaction class for mediating between fields
 interaction::interaction(double Coupling, std::vector<int> Powers) : coupling(Coupling), powers(Powers) 
 {
@@ -324,7 +335,9 @@ dcomp scalar_field::free_action_derivative(int site)
 
 dcomp scalar_field::free_action_second_derivative(int site_1, int site_2)
 {
-  dcomp ddS; //TODO add the calculation from the notes
+  //second derivative calculation
+  dcomp ddS = (dd(site_1, site_2) + dd(positive_time_site[site_1], site_2))/path[site_1] + (dd(site_1, site_2) - dd(negative_time_site[site_1], site_2))/path_offset[site_1]
+    - ((path[site_1] + path_offset[site_1])/2.)*((2*dd(site_1, site_2) - dd(positive_space_site[site_1], site_2) - dd(negative_space_site[site_1], site_2))/pow(dx, 2) - squareMass*dd(site_1, site_2));
   return ddS;
 }
 
