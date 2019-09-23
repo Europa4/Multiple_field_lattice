@@ -25,24 +25,25 @@ const double pi = 3.14159265359;
 const double e = 2.71828182846;
 
 //forward defenitions******************************************************************
-//class thimble_system;
+class thimble_system;
 //*************************************************************************************
 
 class interaction
 {
     private:
     double coupling;
-    vector<int> powers;
+    std::vector<int> powers;
 
     protected:
 
     public:
     dcomp base(int site, thimble_system* current_system);
-
+    dcomp first_derivative(int site, int field, thimble_system* current_system);
+    dcomp second_derivative(int site, int field_1, int field_2, thimble_system* current_system);
 
     //constructor
-    interaction(double Coupling, vector<int> Powers);
-}
+    interaction(double Coupling, std::vector<int> Powers);
+};
 
 class scalar_field
 {
@@ -60,7 +61,7 @@ class scalar_field
     int* positive_space_site;
     int* negative_time_site;
     int* negative_space_site; //co-ordinate shifted arrays to minimise computation time for neighbour sites
-    gsl_rng * my_rngPointer;
+    gsl_rng* my_rngPointer;
     dcomp j;
 
     //private assigment constructor
@@ -71,6 +72,8 @@ class scalar_field
 
     protected:
     dcomp free_action(int site);
+    dcomp free_action_derivative(int site);
+    dcomp free_action_second_derivative(int site_1, int site_2);
 
     public:
     dcomp* base_field;

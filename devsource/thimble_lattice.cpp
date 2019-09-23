@@ -1,7 +1,7 @@
 #include "thimble_lattice.h"
 
 //interaction class for mediating between fields
-interaction::interaction(double Coupling, <vector int> Powers) : coupling(Coupling), powers(Powers) 
+interaction::interaction(double Coupling, std::vector<int> Powers) : coupling(Coupling), powers(Powers) 
 {
 
 }
@@ -12,6 +12,50 @@ dcomp interaction::base(int site, thimble_system* current_system)
   for(int i = 0; i < powers.size(); ++i)
   {
     interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+  }
+  return interaction_contribution;
+}
+
+dcomp interaction::first_derivative(int site, int field, thimble_system* current_system)
+{
+  dcomp interaction_contribution = coupling;
+  //all the non-derivative fields up to the derivative
+  for (int i = 0; i < field; ++i)
+  {
+    interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+  }
+  //contribution of the derivative field
+  interaction_contribution *= double(powers[field])*pow(current_system->scalars[field].flowed_field[site], powers[field] - 1);
+
+  //contribution of all non-derivative fields from beyond the derivative field value
+  for (int i = field + 1; i < powers.size(); ++i)
+  {
+    interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+  }
+  return interaction_contribution;
+}
+
+dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system* current_system)
+{
+  dcomp interaction_contribution = coupling;
+  if (field_1 == field_2)
+  {
+      for (int i = 0; i < field_1; ++i)
+    {
+      interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+    }
+    //contribution of the derivative field
+    interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system->scalars[field_1].flowed_field[site], powers[field_1] - 2);
+
+    //contribution of all non-derivative fields from beyond the derivative field value
+    for (int i = field_1 + 1; i < powers.size(); ++i)
+    {
+      interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+    }
+  }
+  else
+  {
+    interaction_contribution = 0;
   }
   return interaction_contribution;
 }
@@ -270,7 +314,21 @@ dcomp scalar_field::free_action(int site)
   return S;
 }
 
-void scalar_field::set_dt(double new_dt);
+dcomp scalar_field::free_action_derivative(int site)
+{
+  //derivative of the above action
+  dcomp dS = (flowed_field[site] - flowed_field[positive_time_site[site]])/path[site] + (flowed_field[site] - flowed_field[negative_time_site[site]])/path_offset[site]
+  - ((path[site] + path_offset[site])/2)*((2.*flowed_field[site] - flowed_field[positive_space_site[site]] - flowed_field[negative_space_site[site]])/pow(dx,2) + squareMass*flowed_field[site]);
+  return dS;
+}
+
+dcomp scalar_field::free_action_second_derivative(int site_1, int site_2)
+{
+  dcomp ddS; //TODO add the calculation from the notes
+  return ddS;
+}
+
+void scalar_field::set_dt(double new_dt)
 {
   for (int i = 0; i < Nrpath; ++i)
   {
