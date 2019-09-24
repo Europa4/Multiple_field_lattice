@@ -11,6 +11,8 @@ T dd(T i, T j)
   }
   return Delta;
 }
+
+
 //interaction class for mediating between fields
 interaction::interaction(double Coupling, std::vector<int> Powers) : coupling(Coupling), powers(Powers) 
 {
@@ -278,7 +280,7 @@ void scalar_field::initialise()
 
   }
 
-  //clearing the classical data from the first site
+  //clearing the classical data from the first site, note the initial condition data is saved in field_0 and field_1
   for(int i = 0; i < Nx; ++i)
   {
     base_field[i] = 0;
@@ -315,29 +317,37 @@ void scalar_field::initialise()
     }
     negative_space_site[i] = (Nx - 1)*Nrpath + i;
   }
+
+  for (int i = 0; i < Ntot; ++i)
+  {
+    flowed_field[i] = base_field[i];
+  }
 }
 
 dcomp scalar_field::free_action(int site)
 {
   //Standard P^2 - m^2 action
-  dcomp S = pow(flowed_field[positive_time_site[site]] - flowed_field[site], 2)/(2.*path[site]) 
-  - (((path[site] + path_offset[site])/2)*(pow(flowed_field[positive_space_site[site]] - flowed_field[site], 2))/(2*pow(dx,2)) + squareMass*pow(flowed_field[site], 2));
+  int n = calc_n(site);
+  dcomp S = pow(flowed_field[positive_time_site[site]] - flowed_field[site], 2)/(2.*path[n]) 
+  - (((path[n] + path_offset[n])/2)*(pow(flowed_field[positive_space_site[site]] - flowed_field[site], 2))/(2*pow(dx,2)) + squareMass*pow(flowed_field[site], 2));
   return S;
 }
 
 dcomp scalar_field::free_action_derivative(int site)
 {
   //derivative of the above action
-  dcomp dS = (flowed_field[site] - flowed_field[positive_time_site[site]])/path[site] + (flowed_field[site] - flowed_field[negative_time_site[site]])/path_offset[site]
-  - ((path[site] + path_offset[site])/2)*((2.*flowed_field[site] - flowed_field[positive_space_site[site]] - flowed_field[negative_space_site[site]])/pow(dx,2) + squareMass*flowed_field[site]);
+  int n = calc_n(site);
+  dcomp dS = (flowed_field[site] - flowed_field[positive_time_site[site]])/path[n] + (flowed_field[site] - flowed_field[negative_time_site[site]])/path_offset[n]
+  - ((path[n] + path_offset[n])/2)*((2.*flowed_field[site] - flowed_field[positive_space_site[site]] - flowed_field[negative_space_site[site]])/pow(dx,2) + squareMass*flowed_field[site]);
   return dS;
 }
 
 dcomp scalar_field::free_action_second_derivative(int site_1, int site_2)
 {
   //second derivative calculation
-  dcomp ddS = (dd(site_1, site_2) + dd(positive_time_site[site_1], site_2))/path[site_1] + (dd(site_1, site_2) - dd(negative_time_site[site_1], site_2))/path_offset[site_1]
-    - ((path[site_1] + path_offset[site_1])/2.)*((2*dd(site_1, site_2) - dd(positive_space_site[site_1], site_2) - dd(negative_space_site[site_1], site_2))/pow(dx, 2) - squareMass*dd(site_1, site_2));
+  int n = calc_n(site_1);
+  dcomp ddS = (dd(site_1, site_2) + dd(positive_time_site[site_1], site_2))/path[n] + (dd(site_1, site_2) - dd(negative_time_site[site_1], site_2))/path_offset[n]
+    - ((path[n] + path_offset[n])/2.)*((2*dd(site_1, site_2) - dd(positive_space_site[site_1], site_2) - dd(negative_space_site[site_1], site_2))/pow(dx, 2) - squareMass*dd(site_1, site_2));
   return ddS;
 }
 
@@ -350,6 +360,12 @@ void scalar_field::set_dt(double new_dt)
   dt = new_dt;
 }
 
+//decomposing the total lattice position into the single timeslice position (for the dt array)
+int scalar_field::calc_n(int site)
+{
+  int n = site%Nrpath;
+  return n;
+}
 //*************************************thimble_system***************************
 
 thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed) : Nx(x_dim), Nt(t_dim), tau(flow_time), Npath(2*Nt), Nrpath(Npath - 4), Ntot(Nrpath*Nx), rng_seed(seed)
@@ -381,4 +397,15 @@ void thimble_system::add_scalar_field(double mass)
 {
   scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
   scalars[scalars.size() - 1].set_mass(mass);
+}
+
+void thimble_system::add_interaction(double coupling, std::vector<int> powers)
+{
+  interactions.emplace_back(interaction(coupling, powers));
+}
+
+void thimble_system::add_interaction(double coupling, int powers)
+{
+  std::vector<int> powers_vector(scalars.size(), powers);
+  add_interaction(coupling, powers_vector);
 }

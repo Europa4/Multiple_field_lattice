@@ -74,6 +74,7 @@ class scalar_field
     dcomp free_action(int site);
     dcomp free_action_derivative(int site);
     dcomp free_action_second_derivative(int site_1, int site_2);
+    int calc_n(int site);
 
     public:
     dcomp* base_field;
@@ -110,9 +111,12 @@ class thimble_system
 
     public:
     std::vector<scalar_field> scalars; //the scalar fields of the simulation SHOULDN'T BE PUBLIC, ONLY IS FOR TESTING
+    std::vector<interaction> interactions; //vector of all field interactions, similarly only public for testing
     
     void add_scalar_field();
     void add_scalar_field(double mass);
+    void add_interaction(double coupling, std::vector<int> powers);
+    void add_interaction(double coupling, int powers);
     
     //constructor and destructor
     thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed);
