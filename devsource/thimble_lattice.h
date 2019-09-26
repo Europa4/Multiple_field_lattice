@@ -57,6 +57,7 @@ class scalar_field
     bool is_flowed;
     dcomp* field_0;
     dcomp* field_1; //sites 0 and 1, which are integrated out of the full simulation
+    dcomp* field_2; //used for the edge case calculation, this is the initial state of field site 2 given the initial conditions
     int* positive_time_site;
     int* positive_space_site;
     int* negative_time_site;
@@ -71,10 +72,6 @@ class scalar_field
     }
 
     protected:
-    dcomp free_action(int site);
-    dcomp free_action_derivative(int site);
-    dcomp free_action_second_derivative(int site_1, int site_2);
-    int calc_n(int site);
 
     public:
     dcomp* base_field;
@@ -86,7 +83,15 @@ class scalar_field
     void set_occupation_number(int new_occupation_number);
     void set_mass(double new_mass);
     void set_dx(double new_dx) {dx = new_dx;};
-    void set_dt(double new_dt);
+    void set_dt(double new_dt);    
+    dcomp free_action(int site);
+    dcomp free_action_derivative(int site);
+    dcomp free_action_second_derivative(int site_1, int site_2);
+    dcomp edge_effects(int site);
+    dcomp edge_effects_derivative(int site);
+    int calc_n(int site);
+    int calc_x(int site);
+
 
     //interfaces
     double get_mass() {return m;};
@@ -103,10 +108,24 @@ class thimble_system
     protected:
     int Nx, Nt, Npath, Nrpath, Ntot; //lattice setup parameters
     int number_of_timesteps; //number of iterations for the ode solver
+    int Njac;
+    int NjacSquared;
     double tau; //flowtime
     double h; //ode step size
     unsigned long int rng_seed;
     gsl_rng * my_rngPointer; //rng pointer for the system/simulation
+    bool jac_defined;
+    dcomp* J;
+    dcomp* proposed_J;
+    dcomp* invJ;
+    dcomp* proposed_invJ;
+    dcomp detJ;
+    dcomp proposed_detJ;
+    std::string rel_path;
+
+    void calc_jacobian(dcomp Jac[]);
+    dcomp calc_dS(int site, int field);
+    dcomp calc_dS(int site);
     
 
     public:
@@ -117,6 +136,8 @@ class thimble_system
     void add_scalar_field(double mass);
     void add_interaction(double coupling, std::vector<int> powers);
     void add_interaction(double coupling, int powers);
+    void set_path(std::string new_path);
+    void simulate(int n_burn_in, int n_simulation);
     
     //constructor and destructor
     thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed);
