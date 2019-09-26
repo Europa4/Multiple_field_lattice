@@ -1,7 +1,20 @@
 #include "thimble_lattice.h"
 
+//simple dirac delta function
+template <class T>
+T dd(T i, T j)
+{
+  T Delta(0);
+  if (i == j)
+  {
+    Delta = 1;
+  }
+  return Delta;
+}
+
+
 //interaction class for mediating between fields
-interaction::interaction(double Coupling, <vector int> Powers) : coupling(Coupling), powers(Powers) 
+interaction::interaction(double Coupling, std::vector<int> Powers) : coupling(Coupling), powers(Powers) 
 {
 
 }
@@ -16,6 +29,49 @@ dcomp interaction::base(int site, thimble_system* current_system)
   return interaction_contribution;
 }
 
+dcomp interaction::first_derivative(int site, int field, thimble_system* current_system)
+{
+  dcomp interaction_contribution = coupling;
+  //all the non-derivative fields up to the derivative
+  for (int i = 0; i < field; ++i)
+  {
+    interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+  }
+  //contribution of the derivative field
+  interaction_contribution *= double(powers[field])*pow(current_system->scalars[field].flowed_field[site], powers[field] - 1);
+
+  //contribution of all non-derivative fields from beyond the derivative field value
+  for (int i = field + 1; i < powers.size(); ++i)
+  {
+    interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+  }
+  return interaction_contribution;
+}
+
+dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system* current_system)
+{
+  dcomp interaction_contribution = coupling;
+  if (field_1 == field_2)
+  {
+      for (int i = 0; i < field_1; ++i)
+    {
+      interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+    }
+    //contribution of the derivative field
+    interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system->scalars[field_1].flowed_field[site], powers[field_1] - 2);
+
+    //contribution of all non-derivative fields from beyond the derivative field value
+    for (int i = field_1 + 1; i < powers.size(); ++i)
+    {
+      interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+    }
+  }
+  else
+  {
+    interaction_contribution = 0;
+  }
+  return interaction_contribution;
+}
 
 //scalar field class to be incorporated into a system class (class composition)*******************************************************
 scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupation_number(new int[x_dim]),
@@ -33,6 +89,7 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   is_flowed(false),
   field_0(new dcomp[Nx]),
   field_1(new dcomp[Nx]),
+  field_2(new dcomp[Nx]),
   base_field(new dcomp[Ntot]), //configuring the lattice arrays
   flowed_field(new dcomp[Ntot]),
   positive_time_site(new int[Ntot]), //offset arrays to speed up computation
@@ -78,6 +135,7 @@ scalar_field::~scalar_field()
     delete[] occupation_number;
     delete[] field_0;
     delete[] field_1;
+    delete[] field_2;
     delete[] positive_time_site;
     delete[] positive_space_site;
     delete[] negative_time_site;
@@ -101,6 +159,7 @@ path_offset(new double[obj.Nrpath]),
 is_flowed(obj.is_flowed),
 field_0(new dcomp[obj.Nx]),
 field_1(new dcomp[obj.Nx]),
+field_2(new dcomp[obj.Nx]),
 positive_time_site(new int[obj.Ntot]),
 positive_space_site(new int[obj.Ntot]),
 negative_time_site(new int[obj.Ntot]),
@@ -223,7 +282,7 @@ void scalar_field::initialise()
 
   }
 
-  //clearing the classical data from the first site
+  //clearing the classical data from the first site, note the initial condition data is saved in field_0 and field_1
   for(int i = 0; i < Nx; ++i)
   {
     base_field[i] = 0;
@@ -260,17 +319,41 @@ void scalar_field::initialise()
     }
     negative_space_site[i] = (Nx - 1)*Nrpath + i;
   }
+
+  for (int i = 0; i < Ntot; ++i)
+  {
+    flowed_field[i] = base_field[i];
+  }
 }
 
 dcomp scalar_field::free_action(int site)
 {
   //Standard P^2 - m^2 action
-  dcomp S = pow(flowed_field[positive_time_site[site]] - flowed_field[site], 2)/(2.*path[site]) 
-  - (((path[site] + path_offset[site])/2)*(pow(flowed_field[positive_space_site[site]] - flowed_field[site], 2))/(2*pow(dx,2)) + squareMass*pow(flowed_field[site], 2));
+  int n = calc_n(site);
+  dcomp S = pow(flowed_field[positive_time_site[site]] - flowed_field[site], 2)/(2.*path[n]) 
+  - (((path[n] + path_offset[n])/2)*(pow(flowed_field[positive_space_site[site]] - flowed_field[site], 2))/(2*pow(dx,2)) + squareMass*pow(flowed_field[site], 2));
   return S;
 }
 
-void scalar_field::set_dt(double new_dt);
+dcomp scalar_field::free_action_derivative(int site)
+{
+  //derivative of the above action
+  int n = calc_n(site);
+  dcomp dS = (flowed_field[site] - flowed_field[positive_time_site[site]])/path[n] + (flowed_field[site] - flowed_field[negative_time_site[site]])/path_offset[n]
+  - ((path[n] + path_offset[n])/2)*((2.*flowed_field[site] - flowed_field[positive_space_site[site]] - flowed_field[negative_space_site[site]])/pow(dx,2) + squareMass*flowed_field[site]);
+  return dS;
+}
+
+dcomp scalar_field::free_action_second_derivative(int site_1, int site_2)
+{
+  //second derivative calculation
+  int n = calc_n(site_1);
+  dcomp ddS = (dd(site_1, site_2) + dd(positive_time_site[site_1], site_2))/path[n] + (dd(site_1, site_2) - dd(negative_time_site[site_1], site_2))/path_offset[n]
+    - ((path[n] + path_offset[n])/2.)*((2*dd(site_1, site_2) - dd(positive_space_site[site_1], site_2) - dd(negative_space_site[site_1], site_2))/pow(dx, 2) - squareMass*dd(site_1, site_2));
+  return ddS;
+}
+
+void scalar_field::set_dt(double new_dt)
 {
   for (int i = 0; i < Nrpath; ++i)
   {
@@ -279,9 +362,72 @@ void scalar_field::set_dt(double new_dt);
   dt = new_dt;
 }
 
+dcomp scalar_field::edge_effects(int site)
+{
+  dcomp effect = 0;
+  int n = calc_n(site);
+  int x = calc_x(site);
+  if (n == 0)
+  {
+    effect = 2.*field_2[x]/dt;
+  }
+  else if (n == 1)
+  {
+    effect = -1.*field_1[x]/dt;
+  }
+  else if (n == Nrpath - 1)
+  {
+    effect = 1.*field_1[x]/dt;
+  }
+  effect *= flowed_field[site];
+  return effect;
+}
+
+dcomp scalar_field::edge_effects_derivative(int site)
+{
+  dcomp effect = 0;
+  int n = calc_n(site);
+  int x = calc_x(site);
+  if (n == 0)
+  {
+    effect = 2.*field_2[x]/dt;
+  }
+  else if (n == 1)
+  {
+    effect = -1.*field_1[x]/dt;
+  }
+  else if (n == Nrpath - 1)
+  {
+    effect = field_1[x]/dt;
+  }
+  return effect;
+}
+
+//decomposing the total lattice position into the single timeslice position (for the dt array)
+int scalar_field::calc_n(int site)
+{
+  int n = site%Nrpath;
+  return n;
+}
+
+int scalar_field::calc_x(int site)
+{
+  int x = int((site - calc_n(site))/Nrpath);
+  return x;
+}
+
 //*************************************thimble_system***************************
 
-thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed) : Nx(x_dim), Nt(t_dim), tau(flow_time), Npath(2*Nt), Nrpath(Npath - 4), Ntot(Nrpath*Nx), rng_seed(seed)
+thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed) : 
+Nx(x_dim), 
+Nt(t_dim), 
+tau(flow_time), 
+Npath(2*Nt), 
+Nrpath(Npath - 4), 
+Ntot(Nrpath*Nx),
+rng_seed(seed),
+jac_defined(false),
+rel_path("")
 {
     //thimble system constructor
     const gsl_rng_type * T;
@@ -299,6 +445,20 @@ thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsi
 thimble_system::~thimble_system()
 {
   gsl_rng_free(my_rngPointer);
+  if (jac_defined)
+  {
+    delete[] J;
+    delete[] proposed_J;
+    delete[] invJ;
+    delete[] proposed_invJ;
+  }
+  else
+  {
+    delete J;
+    delete proposed_J;
+    delete invJ;
+    delete proposed_invJ;
+  }
 }
 
 void thimble_system::add_scalar_field()
@@ -310,4 +470,108 @@ void thimble_system::add_scalar_field(double mass)
 {
   scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
   scalars[scalars.size() - 1].set_mass(mass);
+}
+
+void thimble_system::add_interaction(double coupling, std::vector<int> powers)
+{
+  interactions.emplace_back(interaction(coupling, powers));
+}
+
+void thimble_system::add_interaction(double coupling, int powers)
+{
+  std::vector<int> powers_vector(scalars.size(), powers);
+  add_interaction(coupling, powers_vector);
+}
+
+void thimble_system::set_path(std::string new_path)
+{
+  //this lets you set the path for saving the data to a different directory.
+  std::string boost_path = new_path;
+  boost_path = boost_path.erase(boost_path.size() - 1); //removes the trailing / from the path before passing to the boost library
+  boost::filesystem::path p(boost_path);
+  if (!exists(p))
+  {
+    create_directory(p); //creates the directory if it doesn't yet exist
+  }
+  rel_path = new_path;
+}
+
+dcomp thimble_system::calc_dS(int site, int field)
+{
+  dcomp dS; //derivative of the action
+  dcomp interaction = 0;
+  dS = scalars[field].free_action_derivative(site); //free field kinetic contribution
+  for (int i = 0; i < interactions.size(); ++i)
+  {
+    //looping through the first derivatives of all the interactions (derivatives with respect to this field)
+    interaction += interactions[i].first_derivative(site, field, this); 
+  }
+  interaction *= (scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
+  dS += interaction;
+  return dS;
+}
+
+dcomp thimble_system::calc_dS(int site)
+{
+  int field = 0;
+  int internal_site = site; //this essentially takes the busy work out of calculating which field the Jacobian is dealing with
+  if (site > Ntot)
+  {
+    while (internal_site > Ntot)
+    {
+      internal_site -= Ntot;
+      ++field;
+    }
+  }
+  return calc_dS(internal_site, field);
+}
+
+dcomp thimble_system::calc_ddS(int site_1; int site_2;, int field)
+{
+  dcomp ddS;
+  ddS = scalars[field].free_action_second_derivative(site_1, site_2) //free component
+  if (site_1 == site_2) //only add the action
+  {
+    for (int i = 0; i < interactions.size(); ++i)
+    {
+      
+    }
+  }
+}
+
+void thimble_system::calc_jacobian(dcomp Jac[])
+{
+
+  //setting up an identity matrix
+  for(int r = 0; r < Njac; ++r)
+  {
+    for(int c = 0; c < Njac; ++c)
+    {
+      if (r == c)
+      {
+        Jac[r + Njac*c] = 1.;
+      }
+      else
+      {
+        Jac[r + Njac*c] = 2.;
+      }
+      
+    }
+  }
+
+  
+}
+
+void thimble_system::simulate(int n_burn_in, int n_simulation)
+{
+  Njac = scalars.size()*Ntot; //setting the size of the Jacobian "matricies"
+  NjacSquared = pow(Njac, 2);
+
+  J = new dcomp[NjacSquared]; //setting up the arrays that hhold the Jacobian matricies
+  proposed_J = new dcomp[NjacSquared];
+  invJ = new dcomp[NjacSquared];
+  proposed_invJ = new dcomp[NjacSquared];
+  jac_defined = true; //this ensures the correct memory management happens
+
+
 }
