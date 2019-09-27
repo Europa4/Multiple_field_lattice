@@ -92,6 +92,8 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   field_2(new dcomp[Nx]),
   base_field(new dcomp[Ntot]), //configuring the lattice arrays
   flowed_field(new dcomp[Ntot]),
+  proposed_base_field(new dcomp[Ntot]),
+  proposed_flowed_field(new dcomp[Ntot]),
   positive_time_site(new int[Ntot]), //offset arrays to speed up computation
   positive_space_site(new int[Ntot]),
   negative_time_site(new int[Ntot]),
@@ -132,6 +134,8 @@ scalar_field::~scalar_field()
     //class destructor
     delete[] base_field;
     delete[] flowed_field;
+    delete[] proposed_base_field;
+    delete[] proposed_flowed_field;
     delete[] occupation_number;
     delete[] field_0;
     delete[] field_1;
@@ -167,7 +171,9 @@ negative_space_site(new int[obj.Ntot]),
 my_rngPointer(obj.my_rngPointer),
 j(obj.j),
 base_field(new dcomp[obj.Ntot]),
-flowed_field(new dcomp[obj.Ntot])
+flowed_field(new dcomp[obj.Ntot]),
+proposed_base_field(new dcomp[obj.Ntot]),
+proposed_flowed_field(new dcomp[obj.Ntot])
 {
   for (int i = 0; i < Nx; ++i)
   {
@@ -184,6 +190,8 @@ flowed_field(new dcomp[obj.Ntot])
     negative_space_site[i] = obj.negative_space_site[i];
     base_field[i] = obj.base_field[i];
     flowed_field[i] = obj.flowed_field[i];
+    proposed_base_field[i] = obj.proposed_base_field[i];
+    proposed_flowed_field[i] = obj.proposed_flowed_field[i];
   }
 
   for (int i = 0; i < Nrpath; ++i)
@@ -526,21 +534,65 @@ dcomp thimble_system::calc_dS(int site)
   return calc_dS(internal_site, field);
 }
 
-dcomp thimble_system::calc_ddS(int site_1; int site_2;, int field)
+dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2)
 {
   dcomp ddS;
-  ddS = scalars[field].free_action_second_derivative(site_1, site_2) //free component
-  if (site_1 == site_2) //only add the action
+  dcomp interaction = 0;
+  if (field_1 == field_2)
+  {
+    ddS = scalars[field_1].free_action_second_derivative(site_1, site_2); //free component
+  }
+  
+  if (site_1 == site_2) //only add the interactions which are on equal sites
   {
     for (int i = 0; i < interactions.size(); ++i)
     {
-      
+      interaction *= interactions[i].second_derivative(site_1, field_1, field_2, this);
     }
+    interaction *= (scalars[field_1].path[scalars[field_1].calc_n(site_1)] + scalars[field_1].path_offset[scalars[field_1].calc_n(site_1)])/2.;
   }
+  ddS += interaction;
+  return ddS;
+}
+
+dcomp thimble_system::calc_ddS(int site_1, int site_2)
+{
+  int field_1 = 0;
+  int field_2 = 0;
+  dcomp ddS;
+
+  while(site_1 > Ntot)
+  {
+    site_1 -= Ntot;
+    ++field_1;
+  }
+  
+  while(site_2 > Ntot)
+  {
+    site_2 -= Ntot;
+    ++field_2;
+  }
+
+  ddS = calc_ddS(site_1, site_2, field_1, field_2);
+  return ddS;
+}
+
+field_id_return thimble_system::calc_field_id(int master_site)
+{
+  field_id_return field_setup;
+  field_setup.field_number = 0;
+  while (master_site > Ntot)
+  {
+    master_site -= Ntot;
+    ++field_setup.field_number;
+  }
+  field_setup.site_number = master_site;
+  return field_setup;
 }
 
 void thimble_system::calc_jacobian(dcomp Jac[])
 {
+  //function calculates the Jacobian from either the proposed 
 
   //setting up an identity matrix
   for(int r = 0; r < Njac; ++r)
@@ -553,12 +605,21 @@ void thimble_system::calc_jacobian(dcomp Jac[])
       }
       else
       {
-        Jac[r + Njac*c] = 2.;
+        Jac[r + Njac*c] = 0.;
       }
-      
     }
   }
 
+  for (int i = 0; i < number_of_timesteps; ++i)
+  {
+    for (int r = 0; r < Njac; ++r)
+    {
+      for (int c = 0; c < Njac; ++c)
+      {
+
+      }
+    }
+  }
   
 }
 
