@@ -28,6 +28,12 @@ const double e = 2.71828182846;
 class thimble_system;
 //*************************************************************************************
 
+struct field_id_return
+{
+    int field_number;
+    int site_number;
+}
+
 class interaction
 {
     private:
@@ -52,8 +58,7 @@ class scalar_field
     int Nx, Nt, Npath, Nrpath, Ntot;
     double m, squareMass; //field mass
     double dt, dx; //lattice spacings
-    double* path; //sign of the path around the contour
-    double* path_offset;
+
     bool is_flowed;
     dcomp* field_0;
     dcomp* field_1; //sites 0 and 1, which are integrated out of the full simulation
@@ -76,6 +81,10 @@ class scalar_field
     public:
     dcomp* base_field;
     dcomp* flowed_field;
+    dcomp* proposed_base_field;
+    dcomp* proposed_flowed_field;
+    double* path; //sign of the path around the contour
+    double* path_offset;
 
     //bulk of the code is given in scalar_field.cpp
     void initialise();
@@ -126,6 +135,9 @@ class thimble_system
     void calc_jacobian(dcomp Jac[]);
     dcomp calc_dS(int site, int field);
     dcomp calc_dS(int site);
+    dcomp calc_ddS(int site_1, int site_2, int field_1, int field_2);
+    dcomp calc_ddS(int site_1, int site_2);
+    field_id_return field_calc(int master_site);
     
 
     public:
