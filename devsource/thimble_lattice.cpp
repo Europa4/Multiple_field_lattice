@@ -435,7 +435,8 @@ Nrpath(Npath - 4),
 Ntot(Nrpath*Nx),
 rng_seed(seed),
 jac_defined(false),
-rel_path("")
+rel_path(""),
+j(0,1)
 {
     //thimble system constructor
     const gsl_rng_type * T;
@@ -577,7 +578,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2)
   return ddS;
 }
 
-field_id_return thimble_system::calc_field_id(int master_site)
+field_id_return thimble_system::calc_field(int master_site)
 {
   field_id_return field_setup;
   field_setup.field_number = 0;
@@ -590,10 +591,32 @@ field_id_return thimble_system::calc_field_id(int master_site)
   return field_setup;
 }
 
-void thimble_system::calc_jacobian(dcomp Jac[])
+void thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
 {
-  //function calculates the Jacobian from either the proposed 
+  //function calculates the Jacobian from either the proposed or orignal fields
+  dcomp* working_scalar = new dcomp[Njac];
+  dcomp* ajustment_scalar = new dcomp[Njac];
+  dcomp* k1_scalar = new dcomp[Njac]; //RK45 variables for the scalar fields
+  dcomp* k2_scalar = new dcomp[Njac];
+  dcomp* k3_scalar = new dcomp[Njac];
+  dcomp* k4_scalar = new dcomp[Njac];
 
+  dcomp* ajustment_jac = new dcomp[NjacSquared];
+  dcomp* k1_jac = new dcomp[NjacSquared];
+  dcomp* k2_jac = new dcomp[NjacSquared];
+  dcomp* k3_jac = new dcomp[NjacSquared];
+  dcomp* k4_jac = new dcomp[NjacSquared];
+  if (proposal)
+  {
+    for (int i = 0; i < scalars.size(); ++i)
+    {
+      for (int k = 0; k < Ntot; ++i)
+      {
+        working_scalar[i*Ntot + k] = scalars[i].proposed_base_field[k];
+      }
+    }
+  }
+  else
   //setting up an identity matrix
   for(int r = 0; r < Njac; ++r)
   {
@@ -614,13 +637,26 @@ void thimble_system::calc_jacobian(dcomp Jac[])
   {
     for (int r = 0; r < Njac; ++r)
     {
+      k1_scalar[r] = h*std::conj(-1.*j*calc_dS(r));
+      ajustment_scalar[r] = working_scalar[r] + k1_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
       {
-
+        k1_jac[r + Ntot*c] = h*std::conj(-1.*j*calc_ddS(r, c)*Jac[r + Ntot*c]);
+        ajustment_jac[r + Ntot*c] = Jac[r + Ntot*c] + k1_jac[r + Ntot*c]/2.;
       }
     }
   }
-  
+  delete[] working_scalar;
+  delete[] ajustment_scalar;
+  delete[] k1_scalar;
+  delete[] k2_scalar;
+  delete[] k3_scalar;
+  delete[] k4_scalar;
+  delete[] ajustment_jac;
+  delete[] k1_jac;
+  delete[] k2_jac;
+  delete[] k3_jac;
+  delete[] k4_jac;
 }
 
 void thimble_system::simulate(int n_burn_in, int n_simulation)
