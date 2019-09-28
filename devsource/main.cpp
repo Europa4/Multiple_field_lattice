@@ -57,7 +57,20 @@ int main(int argc, char **argv)
   thimble_system sys(1, 10, 1.0, 5);
   sys.add_scalar_field(1.0);
   sys.add_interaction(1.0, 4);
- 
+
+  int* test = new int[5];
+  for (int i = 0; i < 5; ++i)
+  {
+    test[i] = 2*i;
+  }
+  int* test2 = test + 2;
+
+  for(int i = 0; i < 3; ++i)
+  {
+    printf("test2[%i] = %i \n", i, test2[i]);
+  }
+  delete[] test;
+
   MPI_Finalize(); //closing the MPI enviroment
   return 0;
 }

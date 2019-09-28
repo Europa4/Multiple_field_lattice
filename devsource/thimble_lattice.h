@@ -32,7 +32,7 @@ struct field_id_return
 {
     int field_number;
     int site_number;
-}
+};
 
 class interaction
 {
@@ -131,13 +131,14 @@ class thimble_system
     dcomp detJ;
     dcomp proposed_detJ;
     std::string rel_path;
+    dcomp j;
 
-    void calc_jacobian(dcomp Jac[]);
+    void calc_jacobian(dcomp Jac[], bool proposal);
     dcomp calc_dS(int site, int field);
     dcomp calc_dS(int site);
     dcomp calc_ddS(int site_1, int site_2, int field_1, int field_2);
     dcomp calc_ddS(int site_1, int site_2);
-    field_id_return field_calc(int master_site);
+    field_id_return calc_field(int master_site);
     
 
     public:
