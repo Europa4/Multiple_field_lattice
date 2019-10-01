@@ -43,7 +43,7 @@ class interaction
     protected:
 
     public:
-    dcomp base(int site, thimble_system* current_system);
+    dcomp base(int site, thimble_system* current_system, bool ajustment = false);
     dcomp first_derivative(int site, int field, thimble_system* current_system);
     dcomp second_derivative(int site, int field_1, int field_2, thimble_system* current_system);
 
@@ -83,6 +83,7 @@ class scalar_field
     dcomp* flowed_field;
     dcomp* proposed_base_field;
     dcomp* proposed_flowed_field;
+    dcomp* ajustment_field;
     double* path; //sign of the path around the contour
     double* path_offset;
 
@@ -93,8 +94,8 @@ class scalar_field
     void set_mass(double new_mass);
     void set_dx(double new_dx) {dx = new_dx;};
     void set_dt(double new_dt);    
-    dcomp free_action(int site);
-    dcomp free_action_derivative(int site);
+    dcomp free_action(int site, bool ajustment = false);
+    dcomp free_action_derivative(int site, bool ajustment = false);
     dcomp free_action_second_derivative(int site_1, int site_2);
     dcomp edge_effects(int site);
     dcomp edge_effects_derivative(int site);
@@ -134,8 +135,8 @@ class thimble_system
     dcomp j;
 
     void calc_jacobian(dcomp Jac[], bool proposal);
-    dcomp calc_dS(int site, int field);
-    dcomp calc_dS(int site);
+    dcomp calc_dS(int site, int field, bool ajustment = false);
+    dcomp calc_dS(int site, bool ajustment = false);
     dcomp calc_ddS(int site_1, int site_2, int field_1, int field_2);
     dcomp calc_ddS(int site_1, int site_2);
     field_id_return calc_field(int master_site);

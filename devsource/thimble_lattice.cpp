@@ -19,12 +19,13 @@ interaction::interaction(double Coupling, std::vector<int> Powers) : coupling(Co
 
 }
 
-dcomp interaction::base(int site, thimble_system* current_system)
+dcomp interaction::base(int site, thimble_system* current_system, bool ajustment)
 {
   dcomp interaction_contribution = coupling;
+  dcomp* work_field;
   for(int i = 0; i < powers.size(); ++i)
   {
-    interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+    interaction_contribution *= pow(current_system->scalars[i].work_field[site], powers[i]);
   }
   return interaction_contribution;
 }
@@ -94,6 +95,7 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   flowed_field(new dcomp[Ntot]),
   proposed_base_field(new dcomp[Ntot]),
   proposed_flowed_field(new dcomp[Ntot]),
+  ajustment_field(new dcomp[Ntot]),
   positive_time_site(new int[Ntot]), //offset arrays to speed up computation
   positive_space_site(new int[Ntot]),
   negative_time_site(new int[Ntot]),
@@ -136,6 +138,7 @@ scalar_field::~scalar_field()
     delete[] flowed_field;
     delete[] proposed_base_field;
     delete[] proposed_flowed_field;
+    delete[] ajustment_field;
     delete[] occupation_number;
     delete[] field_0;
     delete[] field_1;
@@ -173,7 +176,8 @@ j(obj.j),
 base_field(new dcomp[obj.Ntot]),
 flowed_field(new dcomp[obj.Ntot]),
 proposed_base_field(new dcomp[obj.Ntot]),
-proposed_flowed_field(new dcomp[obj.Ntot])
+proposed_flowed_field(new dcomp[obj.Ntot]),
+ajustment_field(new dcomp[obj.Ntot])
 {
   for (int i = 0; i < Nx; ++i)
   {
@@ -192,6 +196,7 @@ proposed_flowed_field(new dcomp[obj.Ntot])
     flowed_field[i] = obj.flowed_field[i];
     proposed_base_field[i] = obj.proposed_base_field[i];
     proposed_flowed_field[i] = obj.proposed_flowed_field[i];
+    ajustment_field[i] = obj.ajustment_field[i];
   }
 
   for (int i = 0; i < Nrpath; ++i)
@@ -334,21 +339,41 @@ void scalar_field::initialise()
   }
 }
 
-dcomp scalar_field::free_action(int site)
+dcomp scalar_field::free_action(int site, bool ajustment)
 {
   //Standard P^2 - m^2 action
   int n = calc_n(site);
-  dcomp S = pow(flowed_field[positive_time_site[site]] - flowed_field[site], 2)/(2.*path[n]) 
-  - (((path[n] + path_offset[n])/2)*(pow(flowed_field[positive_space_site[site]] - flowed_field[site], 2))/(2*pow(dx,2)) + squareMass*pow(flowed_field[site], 2));
+  dcomp* work_field;
+  if (ajustment)
+  {
+    work_field = ajustment_field;
+  }
+  else
+  {
+    work_field = flowed_field;
+  }
+  
+  dcomp S = pow(work_field[positive_time_site[site]] - work_field[site], 2)/(2.*path[n]) 
+  - (((path[n] + path_offset[n])/2)*(pow(work_field[positive_space_site[site]] - work_field[site], 2))/(2*pow(dx,2)) + squareMass*pow(work_field[site], 2));
   return S;
 }
 
-dcomp scalar_field::free_action_derivative(int site)
+dcomp scalar_field::free_action_derivative(int site, bool ajustment)
 {
   //derivative of the above action
   int n = calc_n(site);
-  dcomp dS = (flowed_field[site] - flowed_field[positive_time_site[site]])/path[n] + (flowed_field[site] - flowed_field[negative_time_site[site]])/path_offset[n]
-  - ((path[n] + path_offset[n])/2)*((2.*flowed_field[site] - flowed_field[positive_space_site[site]] - flowed_field[negative_space_site[site]])/pow(dx,2) + squareMass*flowed_field[site]);
+  dcomp* work_field;
+  if(ajustment_field)
+  {
+    work_field = ajustment_field;
+  }
+  else
+  {
+    work_field = flowed_field;
+  }
+  
+  dcomp dS = (work_field[site] - work_field[positive_time_site[site]])/path[n] + (work_field[site] - work_field[negative_time_site[site]])/path_offset[n]
+  - ((path[n] + path_offset[n])/2)*((2.*work_field[site] - work_field[positive_space_site[site]] - work_field[negative_space_site[site]])/pow(dx,2) + squareMass*work_field[site]);
   return dS;
 }
 
@@ -498,11 +523,11 @@ void thimble_system::set_path(std::string new_path)
   rel_path = new_path;
 }
 
-dcomp thimble_system::calc_dS(int site, int field)
+dcomp thimble_system::calc_dS(int site, int field, bool ajustment)
 {
   dcomp dS; //derivative of the action
   dcomp interaction = 0;
-  dS = scalars[field].free_action_derivative(site); //free field kinetic contribution
+  dS = scalars[field].free_action_derivative(site, ajustment); //free field kinetic contribution
   for (int i = 0; i < interactions.size(); ++i)
   {
     //looping through the first derivatives of all the interactions (derivatives with respect to this field)
@@ -513,7 +538,7 @@ dcomp thimble_system::calc_dS(int site, int field)
   return dS;
 }
 
-dcomp thimble_system::calc_dS(int site)
+dcomp thimble_system::calc_dS(int site, bool ajustment)
 {
   int field = 0;
   int internal_site = site; //this essentially takes the busy work out of calculating which field the Jacobian is dealing with
@@ -525,7 +550,7 @@ dcomp thimble_system::calc_dS(int site)
       ++field;
     }
   }
-  return calc_dS(internal_site, field);
+  return calc_dS(internal_site, field, ajustment);
 }
 
 dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2)
