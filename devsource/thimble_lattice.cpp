@@ -19,99 +19,53 @@ interaction::interaction(double Coupling, std::vector<int> Powers) : coupling(Co
 
 }
 
-dcomp interaction::base(int site, thimble_system* current_system, bool ajustment)
+dcomp interaction::base(int site, thimble_system* current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
-  if (ajustment) //checks if this is to be done on the final field, or on the fields used as part of the ODE solver
+  for(int i = 0; i < powers.size(); ++i)
   {
-    for(int i = 0; i < powers.size(); ++i)
-    {
-      //applies all the fields raised to the relevant power
-      interaction_contribution *= pow(current_system->scalars[i].ajustment_field[site], powers[i]); 
-    }
+    //applies all the fields raised to the relevant power
+    interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]); 
   }
-  else
-  {
-    for(int i = 0; i < powers.size(); ++i)
-    {
-      interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
-    }
-  }
-  
+
   return interaction_contribution;
 }
 
-dcomp interaction::first_derivative(int site, int field, thimble_system* current_system, bool ajustment)
+dcomp interaction::first_derivative(int site, int field, thimble_system* current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
-  if (ajustment)
+  //all the non-derivative fields up to the derivative
+  for (int i = 0; i < field; ++i)
   {
-    //all the non-derivative fields up to the derivative
-    for (int i = 0; i < field; ++i)
-    {
-      interaction_contribution *= pow(current_system->scalars[i].ajustment_field[site], powers[i]);
-    }
-    //contribution of the derivative field
-    interaction_contribution *= double(powers[field])*pow(current_system->scalars[field].ajustment_field[site], powers[field] - 1);
-
-    //contribution of all non-derivative fields from beyond the derivative field value
-    for (int i = field + 1; i < powers.size(); ++i)
-    {
-      interaction_contribution *= pow(current_system->scalars[i].ajustment_field[site], powers[i]);
-    }
+    interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
   }
-  else{
-    //all the non-derivative fields up to the derivative
-    for (int i = 0; i < field; ++i)
-    {
-      interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
-    }
-    //contribution of the derivative field
-    interaction_contribution *= double(powers[field])*pow(current_system->scalars[field].flowed_field[site], powers[field] - 1);
+  //contribution of the derivative field
+  interaction_contribution *= double(powers[field])*pow(current_system->scalars[field].fields[field_type][site], powers[field] - 1);
 
-    //contribution of all non-derivative fields from beyond the derivative field value
-    for (int i = field + 1; i < powers.size(); ++i)
-    {
-      interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
-    }
+  //contribution of all non-derivative fields from beyond the derivative field value
+  for (int i = field + 1; i < powers.size(); ++i)
+  {
+    interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
   }
   return interaction_contribution;
 }
 
-dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system* current_system, bool ajustment)
+dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system* current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
   if (field_1 == field_2)
   {
-    if (ajustment)
+    for (int i = 0; i < field_1; ++i)
     {
-      for (int i = 0; i < field_1; ++i)
-      {
-        interaction_contribution *= pow(current_system->scalars[i].ajustment_field[site], powers[i]);
-      }
-      //contribution of the derivative field
-      interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system->scalars[field_1].ajustment_field[site], powers[field_1] - 2);
-
-      //contribution of all non-derivative fields from beyond the derivative field value
-      for (int i = field_1 + 1; i < powers.size(); ++i)
-      {
-        interaction_contribution *= pow(current_system->scalars[i].ajustment_field[site], powers[i]);
-      }
+      interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
     }
-    else
-    {
-      for (int i = 0; i < field_1; ++i)
-      {
-        interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
-      }
-      //contribution of the derivative field
-      interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system->scalars[field_1].flowed_field[site], powers[field_1] - 2);
+    //contribution of the derivative field
+    interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system->scalars[field_1].fields[field_type][site], powers[field_1] - 2);
 
-      //contribution of all non-derivative fields from beyond the derivative field value
-      for (int i = field_1 + 1; i < powers.size(); ++i)
-      {
-        interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
-      }
+    //contribution of all non-derivative fields from beyond the derivative field value
+    for (int i = field_1 + 1; i < powers.size(); ++i)
+    {
+      interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
     }
   }
   else
@@ -138,11 +92,11 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   field_0(new dcomp[Nx]),
   field_1(new dcomp[Nx]),
   field_2(new dcomp[Nx]),
-  base_field(new dcomp[Ntot]), //configuring the lattice arrays
-  flowed_field(new dcomp[Ntot]),
-  proposed_base_field(new dcomp[Ntot]),
-  proposed_flowed_field(new dcomp[Ntot]),
-  ajustment_field(new dcomp[Ntot]),
+  fields[0](new dcomp[Ntot]), //configuring the lattice arrays
+  fields[1](new dcomp[Ntot]),
+  fields[2](new dcomp[Ntot]),
+  fields[3](new dcomp[Ntot]),
+  fields[4](new dcomp[Ntot]),
   positive_time_site(new int[Ntot]), //offset arrays to speed up computation
   positive_space_site(new int[Ntot]),
   negative_time_site(new int[Ntot]),
@@ -155,8 +109,10 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   for (int i = 0; i < Ntot; ++i)
   {
     //zero initialising the fields
-    base_field[i] = 0;
-    flowed_field[i] = 0;
+    for(int k = 0; k < 5; ++k)
+    {
+      fields[k][i] = 0;
+    }
   }
   
   for (int i = 0; i < Nx; ++i)
@@ -181,11 +137,10 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
 scalar_field::~scalar_field()
 {
     //class destructor
-    delete[] base_field;
-    delete[] flowed_field;
-    delete[] proposed_base_field;
-    delete[] proposed_flowed_field;
-    delete[] ajustment_field;
+    for (int i = 0; i < 5; ++i)
+    {
+      delete[] fields[i];
+    }
     delete[] occupation_number;
     delete[] field_0;
     delete[] field_1;
@@ -220,17 +175,18 @@ negative_time_site(new int[obj.Ntot]),
 negative_space_site(new int[obj.Ntot]),
 my_rngPointer(obj.my_rngPointer),
 j(obj.j),
-base_field(new dcomp[obj.Ntot]),
-flowed_field(new dcomp[obj.Ntot]),
-proposed_base_field(new dcomp[obj.Ntot]),
-proposed_flowed_field(new dcomp[obj.Ntot]),
-ajustment_field(new dcomp[obj.Ntot])
+fields[0](new dcomp[obj.Ntot]),
+fields[1](new dcomp[obj.Ntot]),
+fields[2](new dcomp[obj.Ntot]),
+fields[3](new dcomp[obj.Ntot]),
+fields[4](new dcomp[obj.Ntot])
 {
   for (int i = 0; i < Nx; ++i)
   {
     occupation_number[i] = obj.occupation_number[i]; //setting values for the arrays that are copied over from the original object
     field_0[i] = obj.field_0[i];
     field_1[i] = obj.field_1[i];
+    field_2[i] = obj.field_2[i];
   }
   
   for(int i = 0; i < Ntot; ++i)
@@ -239,11 +195,10 @@ ajustment_field(new dcomp[obj.Ntot])
     positive_space_site[i] = obj.positive_space_site[i];
     negative_time_site[i] = obj.negative_time_site[i];
     negative_space_site[i] = obj.negative_space_site[i];
-    base_field[i] = obj.base_field[i];
-    flowed_field[i] = obj.flowed_field[i];
-    proposed_base_field[i] = obj.proposed_base_field[i];
-    proposed_flowed_field[i] = obj.proposed_flowed_field[i];
-    ajustment_field[i] = obj.ajustment_field[i];
+    for (int k = 0; k < 5; ++k)
+    {
+      fields[k][i] = obj.fields[k][i];
+    }
   }
 
   for (int i = 0; i < Nrpath; ++i)
@@ -328,16 +283,16 @@ void scalar_field::initialise()
   
   for(int k = 0; k < Nx; ++k)
   {
-      base_field[0 + Nrpath*k] = field_1[k];
-      base_field[1 + Nrpath*k] = -1.0*dt*dt*(squareMass*base_field[0 + Nrpath*k]) + 2.0*base_field[0 + Nrpath*k] - field_0[k];
+      fields[2][0 + Nrpath*k] = field_1[k];
+      base_field[2][1 + Nrpath*k] = -1.0*dt*dt*(squareMass*base_field[0 + Nrpath*k]) + 2.0*base_field[0 + Nrpath*k] - field_0[k];
       for (int i = 1; i < (int) (Nrpath/2); ++i)
       {
-        base_field[i + Nrpath*k + 1] = -dt*dt*squareMass*base_field[i + Nrpath*k] + 2.0*base_field[i + Nrpath*k] - base_field[i + Nrpath*k - 1];
+        fields[2][i + Nrpath*k + 1] = -dt*dt*squareMass*base_field[i + Nrpath*k] + 2.0*base_field[i + Nrpath*k] - base_field[i + Nrpath*k - 1];
       }
       
       for(int i = 0; i < (int) (Nrpath/2); ++i)
       {
-        base_field[Nrpath*(k + 1) - i - 1] = base_field[Nrpath*k + i + 1]; //sets up the return leg of the contour
+        fields[2][Nrpath*(k + 1) - i - 1] = base_field[Nrpath*k + i + 1]; //sets up the return leg of the contour
       }
 
   }
@@ -345,7 +300,7 @@ void scalar_field::initialise()
   //clearing the classical data from the first site, note the initial condition data is saved in field_0 and field_1
   for(int i = 0; i < Nx; ++i)
   {
-    base_field[i] = 0;
+    fields[2][i] = 0;
   }
 
   //setting up the co-ordinate shifted arrays. Could combine them, but this won't be called much, so the legibility is prioritised over speed
@@ -382,45 +337,26 @@ void scalar_field::initialise()
 
   for (int i = 0; i < Ntot; ++i)
   {
-    flowed_field[i] = base_field[i];
+    fields[0][i] = fields[2][i];
   }
 }
 
-dcomp scalar_field::free_action(int site, bool ajustment)
+dcomp scalar_field::free_action(int site, int field_type)
 {
   //Standard P^2 - m^2 action
   int n = calc_n(site);
-  dcomp* work_field;
-  if (ajustment)
-  {
-    work_field = ajustment_field;
-  }
-  else
-  {
-    work_field = flowed_field;
-  }
-  
-  dcomp S = pow(work_field[positive_time_site[site]] - work_field[site], 2)/(2.*path[n]) 
-  - (((path[n] + path_offset[n])/2)*(pow(work_field[positive_space_site[site]] - work_field[site], 2))/(2*pow(dx,2)) + squareMass*pow(work_field[site], 2));
+  dcomp S = pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2)/(2.*path[n]) 
+  - (((path[n] + path_offset[n])/2)*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2))/(2*pow(dx,2)) + squareMass*pow(fields[field_type][site], 2));
   return S;
 }
 
-dcomp scalar_field::free_action_derivative(int site, bool ajustment)
+dcomp scalar_field::free_action_derivative(int site, int field_type)
 {
   //derivative of the above action
   int n = calc_n(site);
-  dcomp* work_field;
-  if(ajustment_field)
-  {
-    work_field = ajustment_field;
-  }
-  else
-  {
-    work_field = flowed_field;
-  }
   
-  dcomp dS = (work_field[site] - work_field[positive_time_site[site]])/path[n] + (work_field[site] - work_field[negative_time_site[site]])/path_offset[n]
-  - ((path[n] + path_offset[n])/2)*((2.*work_field[site] - work_field[positive_space_site[site]] - work_field[negative_space_site[site]])/pow(dx,2) + squareMass*work_field[site]);
+  dcomp dS = (fields[field_type][site] - fields[field_type][positive_time_site[site]])/path[n] + (fields[field_type][site] - fields[field_type][negative_time_site[site]])/path_offset[n]
+  - ((path[n] + path_offset[n])/2)*((2.*fields[field_type][site] - fields[field_type][positive_space_site[site]] - fields[field_type][negative_space_site[site]])/pow(dx,2) + squareMass*fields[field_type][site]);
   return dS;
 }
 
@@ -442,7 +378,7 @@ void scalar_field::set_dt(double new_dt)
   dt = new_dt;
 }
 
-dcomp scalar_field::edge_effects(int site)
+dcomp scalar_field::edge_effects(int site, int field_type)
 {
   dcomp effect = 0;
   int n = calc_n(site);
@@ -459,7 +395,7 @@ dcomp scalar_field::edge_effects(int site)
   {
     effect = 1.*field_1[x]/dt;
   }
-  effect *= flowed_field[site];
+  effect *= fields[field_type][site];
   return effect;
 }
 
@@ -682,7 +618,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   dcomp* k2_jac = new dcomp[NjacSquared];
   dcomp* k3_jac = new dcomp[NjacSquared];
   dcomp* k4_jac = new dcomp[NjacSquared];
-  bool ajustment = true;
+  int ajustment = 4;
 
   int s;
   gsl_permutation* p = gsl_permutation_alloc(Njac);
@@ -690,26 +626,13 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   gsl_complex det_gsl;
 
   //identifying if it's the proposal or exising fields we wish to flow
+  int proposal_or = 2;
   if (proposal)
   {
-    for (int i = 0; i < scalars.size(); ++i)
-    {
-      for (int k = 0; k < Ntot; ++i)
-      {
-        working_scalar[i*Ntot + k] = scalars[i].proposed_base_field[k];
-      }
-    }
+    proposal_or = 3;
   }
-  else
-  {
-    for(int i = 0; i < scalars.size(); ++i)
-    {
-      for(int k = 0; k < Ntot; ++k)
-      {
-        working_scalar[i*Ntot + k] = scalars[i].base_field[k];
-      }
-    }
-  }
+  working_scalar[i*Ntot + k] = scalars[i].fields[proposal_or][k];
+
   //setting up an identity matrix
   for(int r = 0; r < Njac; ++r)
   {
@@ -730,7 +653,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   {
     for (int r = 0; r < Njac; ++r)
     {
-      k1_scalar[r] = h*std::conj(-1.*j*calc_dS(r));
+      k1_scalar[r] = h*std::conj(-1.*j*calc_dS(r, proposal_or - 2));
       ajustment_scalar[r] = working_scalar[r] + k1_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
       {
@@ -799,27 +722,13 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
     }
   }
   //returning the flowed fields to the scalar fields class
-  if(proposal)
+  for (int i = 0; i < scalars.size(); ++i)
   {
-    for (int i = 0; i < scalars.size(); ++i)
+    for (int k = 0; k < Ntot; ++k)
     {
-      for (int k = 0; k < Ntot; ++i)
-      {
-        scalars[i].proposed_flowed_field[k] = working_scalar[i*Ntot + k];
-      }
+      scalars[i].fields[proposal_or - 2][k] = working_scalar[i*Ntot + k];
     }
   }
-  else
-  {
-    for (int i = 0; i < scalars.size(); ++i)
-    {
-      for (int k = 0; k < Ntot; ++k)
-      {
-        scalars[i].flowed_field[k] = working_scalar[i*Ntot +k];
-      }
-    }
-  }
-
   //casting from our complex array to a GSL matrix
   for(int r = 0; r < Njac; ++r)
   {

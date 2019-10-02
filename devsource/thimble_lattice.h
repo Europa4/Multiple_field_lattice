@@ -43,9 +43,9 @@ class interaction
     protected:
 
     public:
-    dcomp base(int site, thimble_system* current_system, bool ajustment = false);
-    dcomp first_derivative(int site, int field, thimble_system* current_system, bool ajustment = false);
-    dcomp second_derivative(int site, int field_1, int field_2, thimble_system* current_system, bool ajustment = false);
+    dcomp base(int site, thimble_system* current_system, int field_type = 0);
+    dcomp first_derivative(int site, int field, thimble_system* current_system, int field_type = 0);
+    dcomp second_derivative(int site, int field_1, int field_2, thimble_system* current_system, int field_type = 0);
 
     //constructor
     interaction(double Coupling, std::vector<int> Powers);
@@ -79,11 +79,7 @@ class scalar_field
     protected:
 
     public:
-    dcomp* base_field;
-    dcomp* flowed_field;
-    dcomp* proposed_base_field;
-    dcomp* proposed_flowed_field;
-    dcomp* ajustment_field;
+    dcomp* fields[5]; //contains all the flowed and unflowed fields
     double* path; //sign of the path around the contour
     double* path_offset;
 
@@ -94,8 +90,8 @@ class scalar_field
     void set_mass(double new_mass);
     void set_dx(double new_dx) {dx = new_dx;};
     void set_dt(double new_dt);    
-    dcomp free_action(int site, bool ajustment = false);
-    dcomp free_action_derivative(int site, bool ajustment = false);
+    dcomp free_action(int site, int field_type = 0);
+    dcomp free_action_derivative(int site, int field_type = 0);
     dcomp free_action_second_derivative(int site_1, int site_2);
     dcomp edge_effects(int site);
     dcomp edge_effects_derivative(int site);
