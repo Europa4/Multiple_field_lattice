@@ -44,8 +44,8 @@ class interaction
 
     public:
     dcomp base(int site, thimble_system* current_system, bool ajustment = false);
-    dcomp first_derivative(int site, int field, thimble_system* current_system);
-    dcomp second_derivative(int site, int field_1, int field_2, thimble_system* current_system);
+    dcomp first_derivative(int site, int field, thimble_system* current_system, bool ajustment = false);
+    dcomp second_derivative(int site, int field_1, int field_2, thimble_system* current_system, bool ajustment = false);
 
     //constructor
     interaction(double Coupling, std::vector<int> Powers);
@@ -134,12 +134,13 @@ class thimble_system
     std::string rel_path;
     dcomp j;
 
-    void calc_jacobian(dcomp Jac[], bool proposal);
+    dcomp calc_jacobian(dcomp Jac[], bool proposal);
     dcomp calc_dS(int site, int field, bool ajustment = false);
     dcomp calc_dS(int site, bool ajustment = false);
-    dcomp calc_ddS(int site_1, int site_2, int field_1, int field_2);
-    dcomp calc_ddS(int site_1, int site_2);
+    dcomp calc_ddS(int site_1, int site_2, int field_1, int field_2, bool ajustment = false);
+    dcomp calc_ddS(int site_1, int site_2, bool ajustment = false);
     field_id_return calc_field(int master_site);
+    void sync_ajustment(dcomp ajustment[]);
     
 
     public:

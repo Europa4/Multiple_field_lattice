@@ -22,49 +22,96 @@ interaction::interaction(double Coupling, std::vector<int> Powers) : coupling(Co
 dcomp interaction::base(int site, thimble_system* current_system, bool ajustment)
 {
   dcomp interaction_contribution = coupling;
-  dcomp* work_field;
-  for(int i = 0; i < powers.size(); ++i)
+  if (ajustment) //checks if this is to be done on the final field, or on the fields used as part of the ODE solver
   {
-    interaction_contribution *= pow(current_system->scalars[i].work_field[site], powers[i]);
+    for(int i = 0; i < powers.size(); ++i)
+    {
+      //applies all the fields raised to the relevant power
+      interaction_contribution *= pow(current_system->scalars[i].ajustment_field[site], powers[i]); 
+    }
   }
+  else
+  {
+    for(int i = 0; i < powers.size(); ++i)
+    {
+      interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+    }
+  }
+  
   return interaction_contribution;
 }
 
-dcomp interaction::first_derivative(int site, int field, thimble_system* current_system)
+dcomp interaction::first_derivative(int site, int field, thimble_system* current_system, bool ajustment)
 {
   dcomp interaction_contribution = coupling;
-  //all the non-derivative fields up to the derivative
-  for (int i = 0; i < field; ++i)
+  if (ajustment)
   {
-    interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
-  }
-  //contribution of the derivative field
-  interaction_contribution *= double(powers[field])*pow(current_system->scalars[field].flowed_field[site], powers[field] - 1);
+    //all the non-derivative fields up to the derivative
+    for (int i = 0; i < field; ++i)
+    {
+      interaction_contribution *= pow(current_system->scalars[i].ajustment_field[site], powers[i]);
+    }
+    //contribution of the derivative field
+    interaction_contribution *= double(powers[field])*pow(current_system->scalars[field].ajustment_field[site], powers[field] - 1);
 
-  //contribution of all non-derivative fields from beyond the derivative field value
-  for (int i = field + 1; i < powers.size(); ++i)
-  {
-    interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+    //contribution of all non-derivative fields from beyond the derivative field value
+    for (int i = field + 1; i < powers.size(); ++i)
+    {
+      interaction_contribution *= pow(current_system->scalars[i].ajustment_field[site], powers[i]);
+    }
   }
-  return interaction_contribution;
-}
-
-dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system* current_system)
-{
-  dcomp interaction_contribution = coupling;
-  if (field_1 == field_2)
-  {
-      for (int i = 0; i < field_1; ++i)
+  else{
+    //all the non-derivative fields up to the derivative
+    for (int i = 0; i < field; ++i)
     {
       interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
     }
     //contribution of the derivative field
-    interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system->scalars[field_1].flowed_field[site], powers[field_1] - 2);
+    interaction_contribution *= double(powers[field])*pow(current_system->scalars[field].flowed_field[site], powers[field] - 1);
 
     //contribution of all non-derivative fields from beyond the derivative field value
-    for (int i = field_1 + 1; i < powers.size(); ++i)
+    for (int i = field + 1; i < powers.size(); ++i)
     {
       interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+    }
+  }
+  return interaction_contribution;
+}
+
+dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system* current_system, bool ajustment)
+{
+  dcomp interaction_contribution = coupling;
+  if (field_1 == field_2)
+  {
+    if (ajustment)
+    {
+      for (int i = 0; i < field_1; ++i)
+      {
+        interaction_contribution *= pow(current_system->scalars[i].ajustment_field[site], powers[i]);
+      }
+      //contribution of the derivative field
+      interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system->scalars[field_1].ajustment_field[site], powers[field_1] - 2);
+
+      //contribution of all non-derivative fields from beyond the derivative field value
+      for (int i = field_1 + 1; i < powers.size(); ++i)
+      {
+        interaction_contribution *= pow(current_system->scalars[i].ajustment_field[site], powers[i]);
+      }
+    }
+    else
+    {
+      for (int i = 0; i < field_1; ++i)
+      {
+        interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+      }
+      //contribution of the derivative field
+      interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system->scalars[field_1].flowed_field[site], powers[field_1] - 2);
+
+      //contribution of all non-derivative fields from beyond the derivative field value
+      for (int i = field_1 + 1; i < powers.size(); ++i)
+      {
+        interaction_contribution *= pow(current_system->scalars[i].flowed_field[site], powers[i]);
+      }
     }
   }
   else
@@ -553,7 +600,7 @@ dcomp thimble_system::calc_dS(int site, bool ajustment)
   return calc_dS(internal_site, field, ajustment);
 }
 
-dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2)
+dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2, bool ajustment)
 {
   dcomp ddS;
   dcomp interaction = 0;
@@ -566,7 +613,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2)
   {
     for (int i = 0; i < interactions.size(); ++i)
     {
-      interaction *= interactions[i].second_derivative(site_1, field_1, field_2, this);
+      interaction *= interactions[i].second_derivative(site_1, field_1, field_2, this, ajustment);
     }
     interaction *= (scalars[field_1].path[scalars[field_1].calc_n(site_1)] + scalars[field_1].path_offset[scalars[field_1].calc_n(site_1)])/2.;
   }
@@ -574,7 +621,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2)
   return ddS;
 }
 
-dcomp thimble_system::calc_ddS(int site_1, int site_2)
+dcomp thimble_system::calc_ddS(int site_1, int site_2, bool ajustment)
 {
   int field_1 = 0;
   int field_2 = 0;
@@ -592,7 +639,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2)
     ++field_2;
   }
 
-  ddS = calc_ddS(site_1, site_2, field_1, field_2);
+  ddS = calc_ddS(site_1, site_2, field_1, field_2, ajustment);
   return ddS;
 }
 
@@ -609,9 +656,20 @@ field_id_return thimble_system::calc_field(int master_site)
   return field_setup;
 }
 
-void thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
+void thimble_system::sync_ajustment(dcomp ajustment[])
 {
-  //function calculates the Jacobian from either the proposed or orignal fields
+  for(int i = 0; i < scalars.size(); ++i)
+  {
+    for(int r = 0; r < Ntot; ++r)
+    {
+      scalars[i].ajustment_field[r] = ajustment[i*Ntot + r];
+    }
+  }
+}
+
+dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
+{
+  //function calculates the Jacobian and it's determinant from either the proposed or orignal fields
   dcomp* working_scalar = new dcomp[Njac];
   dcomp* ajustment_scalar = new dcomp[Njac];
   dcomp* k1_scalar = new dcomp[Njac]; //RK45 variables for the scalar fields
@@ -624,6 +682,14 @@ void thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   dcomp* k2_jac = new dcomp[NjacSquared];
   dcomp* k3_jac = new dcomp[NjacSquared];
   dcomp* k4_jac = new dcomp[NjacSquared];
+  bool ajustment = true;
+
+  int s;
+  gsl_permutation* p = gsl_permutation_alloc(Njac);
+  gsl_matrix_complex* mJ = gsl_matrix_complex_alloc(Njac, Njac);
+  gsl_complex det_gsl;
+
+  //identifying if it's the proposal or exising fields we wish to flow
   if (proposal)
   {
     for (int i = 0; i < scalars.size(); ++i)
@@ -635,6 +701,15 @@ void thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
     }
   }
   else
+  {
+    for(int i = 0; i < scalars.size(); ++i)
+    {
+      for(int k = 0; k < Ntot; ++k)
+      {
+        working_scalar[i*Ntot + k] = scalars[i].base_field[k];
+      }
+    }
+  }
   //setting up an identity matrix
   for(int r = 0; r < Njac; ++r)
   {
@@ -650,7 +725,7 @@ void thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       }
     }
   }
-
+  //standard implementation of RK45
   for (int i = 0; i < number_of_timesteps; ++i)
   {
     for (int r = 0; r < Njac; ++r)
@@ -663,7 +738,99 @@ void thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
         ajustment_jac[r + Ntot*c] = Jac[r + Ntot*c] + k1_jac[r + Ntot*c]/2.;
       }
     }
+    sync_ajustment(ajustment_scalar);
+    //ajustment scalar does the job of holding field values that are calculated intermittenlty in the RK45 method
+    //sync_ajustment pushes the values stored in the array in this function back out to the scalarfields, which then use the value to calculate the ds and dds functions
+
+    for (int r = 0; r < Njac; ++r)
+    {
+      k2_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
+      for (int c = 0; c < Njac; ++c)
+      {
+        k2_jac[r + Ntot*c] = h*std::conj(calc_ddS(r, c, ajustment));
+      }
+    }
+
+    for (int r = 0; r < Njac; ++r)
+    {
+      ajustment_scalar[r] = working_scalar[r] + k2_scalar[r]/2.;
+      for (int c = 0; c < Njac; ++c)
+      {
+        ajustment_jac[r + Ntot*c] = Jac[r + Ntot*c] + k2_jac[r + Ntot*c]/2.;
+      }
+    }
+    sync_ajustment(ajustment_scalar);
+
+    for (int r = 0; r < Njac; ++r)
+    {
+      k3_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
+      for (int c = 0; c < Njac; ++c)
+      {
+        k3_jac[r + Ntot*c] = h*std::conj(-1.*j*calc_ddS(r, c, ajustment));
+      }
+    }
+
+    for (int r = 0; r < Njac; ++r)
+    {
+      ajustment_scalar[r] = working_scalar[r] + k3_scalar[r];
+      for (int c = 0; c < Njac; ++c)
+      {
+        ajustment_jac[r + Ntot*c] = Jac[r + Ntot*c] + k3_jac[r + Ntot*c];
+      }
+    }
+    sync_ajustment(ajustment_scalar);
+
+    for (int r = 0; r < Njac; ++r)
+    {
+      k4_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
+      for (int c = 0; c < Njac; ++c)
+      {
+        k4_jac[r + Ntot*c] = h*std::conj(-1.*j*calc_ddS(r, c, ajustment));
+      }
+    }
+
+    for (int r = 0; r < Njac; ++r)
+    {
+      working_scalar[r] = (k1_scalar[r] + 2.*k2_scalar[r] + 2.*k3_scalar[r] + k4_scalar[r])/6.;
+      for (int c = 0; c < Njac; ++c)
+      {
+        Jac[r + Ntot*c] = (k1_jac[r] + 2.*k2_jac[r] + 2.*k3_jac[r] + k4_jac[r])/6.;
+      }
+    }
   }
+  //returning the flowed fields to the scalar fields class
+  if(proposal)
+  {
+    for (int i = 0; i < scalars.size(); ++i)
+    {
+      for (int k = 0; k < Ntot; ++i)
+      {
+        scalars[i].proposed_flowed_field[k] = working_scalar[i*Ntot + k];
+      }
+    }
+  }
+  else
+  {
+    for (int i = 0; i < scalars.size(); ++i)
+    {
+      for (int k = 0; k < Ntot; ++k)
+      {
+        scalars[i].flowed_field[k] = working_scalar[i*Ntot +k];
+      }
+    }
+  }
+
+  //casting from our complex array to a GSL matrix
+  for(int r = 0; r < Njac; ++r)
+  {
+    for(int c = 0; c < Njac; ++c)
+    {
+      gsl_matrix_complex_set(mJ, r, c, gsl_complex_rect(std::real(Jac[r + c*Ntot]), std::imag(Jac [r + c*Ntot])));
+    }
+  }
+  gsl_linalg_complex_LU_decomp(mJ, p, &s);
+  det_gsl = gsl_linalg_complex_LU_det(mJ, s); //this actually calculates the determinant
+  
   delete[] working_scalar;
   delete[] ajustment_scalar;
   delete[] k1_scalar;
@@ -675,6 +842,10 @@ void thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   delete[] k2_jac;
   delete[] k3_jac;
   delete[] k4_jac;
+  gsl_permutation_free(p);
+  gsl_matrix_complex_free(mJ);
+
+  return GSL_REAL(det_gsl) + j*GSL_IMAG(det_gsl);
 }
 
 void thimble_system::simulate(int n_burn_in, int n_simulation)
@@ -687,6 +858,4 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   invJ = new dcomp[NjacSquared];
   proposed_invJ = new dcomp[NjacSquared];
   jac_defined = true; //this ensures the correct memory management happens
-
-
 }
