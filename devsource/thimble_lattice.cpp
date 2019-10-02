@@ -570,22 +570,22 @@ void thimble_system::set_path(std::string new_path)
   rel_path = new_path;
 }
 
-dcomp thimble_system::calc_dS(int site, int field, bool ajustment)
+dcomp thimble_system::calc_dS(int site, int field, int field_type)
 {
   dcomp dS; //derivative of the action
   dcomp interaction = 0;
-  dS = scalars[field].free_action_derivative(site, ajustment); //free field kinetic contribution
+  dS = scalars[field].free_action_derivative(site, field_type); //free field kinetic contribution
   for (int i = 0; i < interactions.size(); ++i)
   {
     //looping through the first derivatives of all the interactions (derivatives with respect to this field)
-    interaction += interactions[i].first_derivative(site, field, this); 
+    interaction += interactions[i].first_derivative(site, field, this, field_type); 
   }
   interaction *= (scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
   dS += interaction;
   return dS;
 }
 
-dcomp thimble_system::calc_dS(int site, bool ajustment)
+dcomp thimble_system::calc_dS(int site, int field_type)
 {
   int field = 0;
   int internal_site = site; //this essentially takes the busy work out of calculating which field the Jacobian is dealing with
@@ -597,23 +597,23 @@ dcomp thimble_system::calc_dS(int site, bool ajustment)
       ++field;
     }
   }
-  return calc_dS(internal_site, field, ajustment);
+  return calc_dS(internal_site, field, field_type);
 }
 
-dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2, bool ajustment)
+dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2, int field_type)
 {
   dcomp ddS;
   dcomp interaction = 0;
   if (field_1 == field_2)
   {
-    ddS = scalars[field_1].free_action_second_derivative(site_1, site_2); //free component
+    ddS = scalars[field_1].free_action_second_derivative(site_1, site_2, field_type); //free component
   }
   
   if (site_1 == site_2) //only add the interactions which are on equal sites
   {
     for (int i = 0; i < interactions.size(); ++i)
     {
-      interaction *= interactions[i].second_derivative(site_1, field_1, field_2, this, ajustment);
+      interaction *= interactions[i].second_derivative(site_1, field_1, field_2, this, field_type);
     }
     interaction *= (scalars[field_1].path[scalars[field_1].calc_n(site_1)] + scalars[field_1].path_offset[scalars[field_1].calc_n(site_1)])/2.;
   }
@@ -621,7 +621,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2,
   return ddS;
 }
 
-dcomp thimble_system::calc_ddS(int site_1, int site_2, bool ajustment)
+dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_type)
 {
   int field_1 = 0;
   int field_2 = 0;
@@ -639,7 +639,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, bool ajustment)
     ++field_2;
   }
 
-  ddS = calc_ddS(site_1, site_2, field_1, field_2, ajustment);
+  ddS = calc_ddS(site_1, site_2, field_1, field_2, field_type);
   return ddS;
 }
 

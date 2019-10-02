@@ -134,14 +134,14 @@ class thimble_system
     std::string rel_path;
     dcomp j;
 
-    dcomp calc_jacobian(dcomp Jac[], bool proposal);
-    dcomp calc_dS(int site, int field, bool ajustment = false);
-    dcomp calc_dS(int site, bool ajustment = false);
-    dcomp calc_ddS(int site_1, int site_2, int field_1, int field_2, bool ajustment = false);
-    dcomp calc_ddS(int site_1, int site_2, bool ajustment = false);
+    dcomp calc_jacobian(dcomp Jac[], bool proposal = false);
+    dcomp calc_dS(int site, int field, int field_type);
+    dcomp calc_dS(int site, int field_type);
+    dcomp calc_ddS(int site_1, int site_2, int field_1, int field_2, int field_type);
+    dcomp calc_ddS(int site_1, int site_2, int field_type);
     field_id_return calc_field(int master_site);
     void sync_ajustment(dcomp ajustment[]);
-    
+    //field type controls which field is used to calculate s, ds, and dds. 0 is flowed, 1 is proposed_flowed, 2 is base, 3 is proposed_base, 4 is ajustment used by the ODE solver 
 
     public:
     std::vector<scalar_field> scalars; //the scalar fields of the simulation SHOULDN'T BE PUBLIC, ONLY IS FOR TESTING
