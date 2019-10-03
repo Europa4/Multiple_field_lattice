@@ -54,10 +54,11 @@ int main(int argc, char **argv)
   phi.simulate(pow(10,3), pow(10,5), 1, 50);
   */
 
-  thimble_system sys(1, 10, 1.0, 5);
+  thimble_system sys(1, 4, 0., 5);
   sys.add_scalar_field(1.0);
-  sys.add_interaction(1.0, 4);
-  
+  //sys.add_interaction(1.0, 4);
+  //printf("the action = %f%+f \n", std::real(sys.calc_S()), std::imag(sys.calc_S()));
+  sys.test();
 
   MPI_Finalize(); //closing the MPI enviroment
   return 0;

@@ -92,11 +92,6 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   field_0(new dcomp[Nx]),
   field_1(new dcomp[Nx]),
   field_2(new dcomp[Nx]),
-  fields[0](new dcomp[Ntot]), //configuring the lattice arrays
-  fields[1](new dcomp[Ntot]),
-  fields[2](new dcomp[Ntot]),
-  fields[3](new dcomp[Ntot]),
-  fields[4](new dcomp[Ntot]),
   positive_time_site(new int[Ntot]), //offset arrays to speed up computation
   positive_space_site(new int[Ntot]),
   negative_time_site(new int[Ntot]),
@@ -105,6 +100,11 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   j(0,1)
 {
   //class constructor
+  fields[0] = new dcomp[Ntot]; //configuring the lattice arrays
+  fields[1] = new dcomp[Ntot];
+  fields[2] = new dcomp[Ntot];
+  fields[3] = new dcomp[Ntot];
+  fields[4] = new dcomp[Ntot];
   
   for (int i = 0; i < Ntot; ++i)
   {
@@ -174,13 +174,13 @@ positive_space_site(new int[obj.Ntot]),
 negative_time_site(new int[obj.Ntot]),
 negative_space_site(new int[obj.Ntot]),
 my_rngPointer(obj.my_rngPointer),
-j(obj.j),
-fields[0](new dcomp[obj.Ntot]),
-fields[1](new dcomp[obj.Ntot]),
-fields[2](new dcomp[obj.Ntot]),
-fields[3](new dcomp[obj.Ntot]),
-fields[4](new dcomp[obj.Ntot])
+j(obj.j)
 {
+  fields[0] = new dcomp[obj.Ntot];
+  fields[1] = new dcomp[obj.Ntot];
+  fields[2] = new dcomp[obj.Ntot];
+  fields[3] = new dcomp[obj.Ntot];
+  fields[4] = new dcomp[obj.Ntot];
   for (int i = 0; i < Nx; ++i)
   {
     occupation_number[i] = obj.occupation_number[i]; //setting values for the arrays that are copied over from the original object
@@ -284,15 +284,15 @@ void scalar_field::initialise()
   for(int k = 0; k < Nx; ++k)
   {
       fields[2][0 + Nrpath*k] = field_1[k];
-      base_field[2][1 + Nrpath*k] = -1.0*dt*dt*(squareMass*base_field[0 + Nrpath*k]) + 2.0*base_field[0 + Nrpath*k] - field_0[k];
+      fields[2][1 + Nrpath*k] = -1.0*dt*dt*(squareMass*fields[2][0 + Nrpath*k]) + 2.0*fields[2][0 + Nrpath*k] - field_0[k];
       for (int i = 1; i < (int) (Nrpath/2); ++i)
       {
-        fields[2][i + Nrpath*k + 1] = -dt*dt*squareMass*base_field[i + Nrpath*k] + 2.0*base_field[i + Nrpath*k] - base_field[i + Nrpath*k - 1];
+        fields[2][i + Nrpath*k + 1] = -dt*dt*squareMass*fields[2][i + Nrpath*k] + 2.0*fields[2][i + Nrpath*k] - fields[2][i + Nrpath*k - 1];
       }
       
       for(int i = 0; i < (int) (Nrpath/2); ++i)
       {
-        fields[2][Nrpath*(k + 1) - i - 1] = base_field[Nrpath*k + i + 1]; //sets up the return leg of the contour
+        fields[2][Nrpath*(k + 1) - i - 1] = fields[2][Nrpath*k + i + 1]; //sets up the return leg of the contour
       }
 
   }
@@ -346,7 +346,8 @@ dcomp scalar_field::free_action(int site, int field_type)
   //Standard P^2 - m^2 action
   int n = calc_n(site);
   dcomp S = pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2)/(2.*path[n]) 
-  - (((path[n] + path_offset[n])/2)*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2))/(2*pow(dx,2)) + squareMass*pow(fields[field_type][site], 2));
+  - (((path[n] + path_offset[n])/2.)*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2))/(2*pow(dx,2)) + squareMass*pow(fields[field_type][site], 2));
+  S += edge_effects(site, field_type);
   return S;
 }
 
@@ -357,6 +358,7 @@ dcomp scalar_field::free_action_derivative(int site, int field_type)
   
   dcomp dS = (fields[field_type][site] - fields[field_type][positive_time_site[site]])/path[n] + (fields[field_type][site] - fields[field_type][negative_time_site[site]])/path_offset[n]
   - ((path[n] + path_offset[n])/2)*((2.*fields[field_type][site] - fields[field_type][positive_space_site[site]] - fields[field_type][negative_space_site[site]])/pow(dx,2) + squareMass*fields[field_type][site]);
+  dS += edge_effects_derivative(site);
   return dS;
 }
 
@@ -373,7 +375,7 @@ void scalar_field::set_dt(double new_dt)
 {
   for (int i = 0; i < Nrpath; ++i)
   {
-    path[i] *= new_dt/dt;
+    path[i] *= new_dt/dt; //rescales the path to account for a new lattice spacing
   }
   dt = new_dt;
 }
@@ -542,7 +544,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2,
   dcomp interaction = 0;
   if (field_1 == field_2)
   {
-    ddS = scalars[field_1].free_action_second_derivative(site_1, site_2, field_type); //free component
+    ddS = scalars[field_1].free_action_second_derivative(site_1, site_2); //free component
   }
   
   if (site_1 == site_2) //only add the interactions which are on equal sites
@@ -598,7 +600,7 @@ void thimble_system::sync_ajustment(dcomp ajustment[])
   {
     for(int r = 0; r < Ntot; ++r)
     {
-      scalars[i].ajustment_field[r] = ajustment[i*Ntot + r];
+      scalars[i].fields[4][r] = ajustment[i*Ntot + r];
     }
   }
 }
@@ -631,7 +633,13 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   {
     proposal_or = 3;
   }
-  working_scalar[i*Ntot + k] = scalars[i].fields[proposal_or][k];
+  for (int i = 0; i < scalars.size(); ++i)
+  {
+    for (int k = 0; k < Ntot; ++k)
+    {
+      working_scalar[i*Ntot + k] = scalars[i].fields[proposal_or][k];
+    }
+  }
 
   //setting up an identity matrix
   for(int r = 0; r < Njac; ++r)
@@ -657,8 +665,8 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       ajustment_scalar[r] = working_scalar[r] + k1_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
       {
-        k1_jac[r + Ntot*c] = h*std::conj(-1.*j*calc_ddS(r, c)*Jac[r + Ntot*c]);
-        ajustment_jac[r + Ntot*c] = Jac[r + Ntot*c] + k1_jac[r + Ntot*c]/2.;
+        k1_jac[r + Njac*c] = h*std::conj(-1.*j*calc_ddS(r, c)*Jac[r + Njac*c]);
+        ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k1_jac[r + Njac*c]/2.;
       }
     }
     sync_ajustment(ajustment_scalar);
@@ -670,7 +678,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       k2_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
-        k2_jac[r + Ntot*c] = h*std::conj(calc_ddS(r, c, ajustment));
+        k2_jac[r + Njac*c] = h*std::conj(calc_ddS(r, c, ajustment));
       }
     }
 
@@ -679,7 +687,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       ajustment_scalar[r] = working_scalar[r] + k2_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
       {
-        ajustment_jac[r + Ntot*c] = Jac[r + Ntot*c] + k2_jac[r + Ntot*c]/2.;
+        ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k2_jac[r + Njac*c]/2.;
       }
     }
     sync_ajustment(ajustment_scalar);
@@ -689,7 +697,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       k3_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
-        k3_jac[r + Ntot*c] = h*std::conj(-1.*j*calc_ddS(r, c, ajustment));
+        k3_jac[r + Njac*c] = h*std::conj(-1.*j*calc_ddS(r, c, ajustment));
       }
     }
 
@@ -698,7 +706,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       ajustment_scalar[r] = working_scalar[r] + k3_scalar[r];
       for (int c = 0; c < Njac; ++c)
       {
-        ajustment_jac[r + Ntot*c] = Jac[r + Ntot*c] + k3_jac[r + Ntot*c];
+        ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k3_jac[r + Njac*c];
       }
     }
     sync_ajustment(ajustment_scalar);
@@ -708,7 +716,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       k4_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
-        k4_jac[r + Ntot*c] = h*std::conj(-1.*j*calc_ddS(r, c, ajustment));
+        k4_jac[r + Njac*c] = h*std::conj(-1.*j*calc_ddS(r, c, ajustment));
       }
     }
 
@@ -717,16 +725,16 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       working_scalar[r] = (k1_scalar[r] + 2.*k2_scalar[r] + 2.*k3_scalar[r] + k4_scalar[r])/6.;
       for (int c = 0; c < Njac; ++c)
       {
-        Jac[r + Ntot*c] = (k1_jac[r] + 2.*k2_jac[r] + 2.*k3_jac[r] + k4_jac[r])/6.;
+        Jac[r + Njac*c] = (k1_jac[r] + 2.*k2_jac[r] + 2.*k3_jac[r] + k4_jac[r])/6.;
       }
     }
-  }
-  //returning the flowed fields to the scalar fields class
-  for (int i = 0; i < scalars.size(); ++i)
-  {
-    for (int k = 0; k < Ntot; ++k)
+    //returning the flowed fields to the scalar fields class
+    for (int i = 0; i < scalars.size(); ++i)
     {
-      scalars[i].fields[proposal_or - 2][k] = working_scalar[i*Ntot + k];
+      for (int k = 0; k < Ntot; ++k)
+      {
+        scalars[i].fields[proposal_or - 2][k] = working_scalar[i*Ntot + k];
+      }
     }
   }
   //casting from our complex array to a GSL matrix
@@ -757,6 +765,30 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   return GSL_REAL(det_gsl) + j*GSL_IMAG(det_gsl);
 }
 
+dcomp thimble_system::calc_S(int field_type)
+{
+  dcomp S = 0;
+  int n;
+  //looping through all the fields and sites to add their free free field contributions
+  for (int i = 0; i < scalars.size(); ++i)
+  {
+    for (int k = 0; k < Ntot; ++k)
+    {
+      S += scalars[i].free_action(k, field_type);
+    }
+  }
+  //looping through all the interactions to add them to the action too
+  for (int i = 0; i < interactions.size(); ++i)
+  {
+    for (int k = 0; k < Ntot; ++k)
+    {
+      n = scalars[0].calc_n(k);
+      S += (scalars[0].path[n] + scalars[0].path_offset[n])*interactions[i].base(k, this, field_type)/2.;
+    }
+  }
+  return S;
+}
+
 void thimble_system::simulate(int n_burn_in, int n_simulation)
 {
   Njac = scalars.size()*Ntot; //setting the size of the Jacobian "matricies"
@@ -767,4 +799,19 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   invJ = new dcomp[NjacSquared];
   proposed_invJ = new dcomp[NjacSquared];
   jac_defined = true; //this ensures the correct memory management happens
+}
+
+void thimble_system::test()
+{
+  simulate(1, 1);
+  dcomp* jac = new dcomp[NjacSquared];
+  dcomp det;
+  det = calc_jacobian(jac);
+  printf("det J = %f%+f \n", std::real(det), std::imag(det));
+  for (int i = 0; i < NjacSquared; ++i)
+  {
+    printf("J[%i] = %f%+f \n", i, std::real(jac[i]), std::imag(jac[i]));
+  }
+  
+  delete[] jac;
 }

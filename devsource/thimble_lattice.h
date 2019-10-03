@@ -93,7 +93,7 @@ class scalar_field
     dcomp free_action(int site, int field_type = 0);
     dcomp free_action_derivative(int site, int field_type = 0);
     dcomp free_action_second_derivative(int site_1, int site_2);
-    dcomp edge_effects(int site);
+    dcomp edge_effects(int site, int field_type = 0);
     dcomp edge_effects_derivative(int site);
     int calc_n(int site);
     int calc_x(int site);
@@ -133,8 +133,8 @@ class thimble_system
     dcomp calc_jacobian(dcomp Jac[], bool proposal = false);
     dcomp calc_dS(int site, int field, int field_type);
     dcomp calc_dS(int site, int field_type);
-    dcomp calc_ddS(int site_1, int site_2, int field_1, int field_2, int field_type);
-    dcomp calc_ddS(int site_1, int site_2, int field_type);
+    dcomp calc_ddS(int site_1, int site_2, int field_1, int field_2, int field_type = 0);
+    dcomp calc_ddS(int site_1, int site_2, int field_type = 0);
     field_id_return calc_field(int master_site);
     void sync_ajustment(dcomp ajustment[]);
     //field type controls which field is used to calculate s, ds, and dds. 0 is flowed, 1 is proposed_flowed, 2 is base, 3 is proposed_base, 4 is ajustment used by the ODE solver 
@@ -149,6 +149,8 @@ class thimble_system
     void add_interaction(double coupling, int powers);
     void set_path(std::string new_path);
     void simulate(int n_burn_in, int n_simulation);
+    dcomp calc_S(int field_type = 0);
+    void test();
     
     //constructor and destructor
     thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed);
