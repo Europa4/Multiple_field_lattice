@@ -366,8 +366,8 @@ dcomp scalar_field::free_action_second_derivative(int site_1, int site_2)
 {
   //second derivative calculation
   int n = calc_n(site_1);
-  dcomp ddS = (dd(site_1, site_2) + dd(positive_time_site[site_1], site_2))/path[n] + (dd(site_1, site_2) - dd(negative_time_site[site_1], site_2))/path_offset[n]
-    - ((path[n] + path_offset[n])/2.)*((2*dd(site_1, site_2) - dd(positive_space_site[site_1], site_2) - dd(negative_space_site[site_1], site_2))/pow(dx, 2) - squareMass*dd(site_1, site_2));
+  dcomp ddS = (dd(site_1, site_2) - dd(positive_time_site[site_1], site_2))/path[n] + (dd(site_1, site_2) - dd(negative_time_site[site_1], site_2))/path_offset[n]
+    - ((path[n] + path_offset[n])/2.)*((2*dd(site_1, site_2) - dd(positive_space_site[site_1], site_2) - dd(negative_space_site[site_1], site_2))/pow(dx, 2) + squareMass*dd(site_1, site_2));
   return ddS;
 }
 
@@ -665,7 +665,11 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       ajustment_scalar[r] = working_scalar[r] + k1_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
       {
-        k1_jac[r + Njac*c] = h*std::conj(-1.*j*calc_ddS(r, c)*Jac[r + Njac*c]);
+        k1_jac[r + Njac*c] = 0;
+        for (int s = 0; s < Njac; ++s)
+        {
+          k1_jac[r + Njac*c] += h*std::conj(-1.*j*calc_ddS(r, s, proposal_or - 2)*Jac[s + Njac*c]);
+        }
         ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k1_jac[r + Njac*c]/2.;
       }
     }
@@ -678,7 +682,11 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       k2_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
-        k2_jac[r + Njac*c] = h*std::conj(calc_ddS(r, c, ajustment));
+        k2_jac[r + Njac*c] = 0;
+        for(int s = 0; s < Njac; ++s)
+        {
+          k2_jac[r + Njac*c] += h*std::conj(-1.*j*calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+        }
       }
     }
 
@@ -697,7 +705,11 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       k3_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
-        k3_jac[r + Njac*c] = h*std::conj(-1.*j*calc_ddS(r, c, ajustment));
+        k3_jac[r + Njac*c] = 0;
+        for (int s = 0; s < Njac; ++s)
+        {
+          k3_jac[r + Njac*c] += h*std::conj(-1.*j*calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+        }
       }
     }
 
@@ -716,16 +728,20 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       k4_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
-        k4_jac[r + Njac*c] = h*std::conj(-1.*j*calc_ddS(r, c, ajustment));
+        k4_jac[r + Njac*c] = 0;
+        for(int s = 0; s < Njac; ++s)
+        {
+          k4_jac[r + Njac*c] += h*std::conj(-1.*j*calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+        }
       }
     }
 
     for (int r = 0; r < Njac; ++r)
     {
-      working_scalar[r] = (k1_scalar[r] + 2.*k2_scalar[r] + 2.*k3_scalar[r] + k4_scalar[r])/6.;
+      working_scalar[r] += (k1_scalar[r] + 2.*k2_scalar[r] + 2.*k3_scalar[r] + k4_scalar[r])/6.;
       for (int c = 0; c < Njac; ++c)
       {
-        Jac[r + Njac*c] = (k1_jac[r] + 2.*k2_jac[r] + 2.*k3_jac[r] + k4_jac[r])/6.;
+        Jac[r + Njac*c] += (k1_jac[r] + 2.*k2_jac[r] + 2.*k3_jac[r] + k4_jac[r])/6.;
       }
     }
     //returning the flowed fields to the scalar fields class
@@ -742,7 +758,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   {
     for(int c = 0; c < Njac; ++c)
     {
-      gsl_matrix_complex_set(mJ, r, c, gsl_complex_rect(std::real(Jac[r + c*Ntot]), std::imag(Jac [r + c*Ntot])));
+      gsl_matrix_complex_set(mJ, r, c, gsl_complex_rect(std::real(Jac[r + c*Njac]), std::imag(Jac [r + c*Njac])));
     }
   }
   gsl_linalg_complex_LU_decomp(mJ, p, &s);
@@ -806,12 +822,16 @@ void thimble_system::test()
   simulate(1, 1);
   dcomp* jac = new dcomp[NjacSquared];
   dcomp det;
+  scalars[0].initialise();
   det = calc_jacobian(jac);
   printf("det J = %f%+f \n", std::real(det), std::imag(det));
   for (int i = 0; i < NjacSquared; ++i)
   {
     printf("J[%i] = %f%+f \n", i, std::real(jac[i]), std::imag(jac[i]));
   }
-  
+  for (int i = 0; i < Ntot; ++i)
+  {
+    printf("phi[%i] = %f%+fi \n", i, std::real(scalars[0].fields[0][i]), std::imag(scalars[0].fields[0][i]));
+  }
   delete[] jac;
 }
