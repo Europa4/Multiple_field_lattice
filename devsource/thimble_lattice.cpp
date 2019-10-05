@@ -656,7 +656,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       }
     }
   }
-  //standard implementation of RK45
+  //standard implementation of RK45 for an autonomous system
   for (int i = 0; i < number_of_timesteps; ++i)
   {
     for (int r = 0; r < Njac; ++r)
@@ -744,7 +744,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
         Jac[r + Njac*c] += (k1_jac[r] + 2.*k2_jac[r] + 2.*k3_jac[r] + k4_jac[r])/6.;
       }
     }
-    //returning the flowed fields to the scalar fields class
+    //returning the flowed fields to the scalar fields object
     for (int i = 0; i < scalars.size(); ++i)
     {
       for (int k = 0; k < Ntot; ++k)
@@ -815,14 +815,18 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   invJ = new dcomp[NjacSquared];
   proposed_invJ = new dcomp[NjacSquared];
   jac_defined = true; //this ensures the correct memory management happens
+
+  for (int i = 0; i < scalars.size(); ++i)
+  {
+    scalars[i].intialise();
+  }
 }
 
 void thimble_system::test()
 {
-  simulate(1, 1);
+  simulate(0, 0);
   dcomp* jac = new dcomp[NjacSquared];
   dcomp det;
-  scalars[0].initialise();
   det = calc_jacobian(jac);
   printf("det J = %f%+f \n", std::real(det), std::imag(det));
   for (int i = 0; i < NjacSquared; ++i)
