@@ -357,7 +357,25 @@ void scalar_field::initialise()
   for (int i = 0; i < Ntot; ++i)
   {
     int n = calc_n(i);
-    C[0][i] = -1.*dx*j*(1/path[n] + 1/path_offset[n] + (path[n] + path_offset[n]/2.)*(-2./pow(dx, 2) - squareMass));
+    C[0][i] = -1.*dx*j*(1/path[n] + 1/path_offset[n] + (path[n] + [path_offset[n]]/2.)*(-2./pow(dx, 2) - squareMass));
+    C[1][i] = j*dx/path[n];
+    C[2][i] = j*dx/path_offset[n];
+    C[3][i] = -1.*dx*j*(path[n] + path_offset[n])/(2.*pow(dx, 2));
+    C[4][i] = 0.;
+  }
+  //edge terms for the edge effects
+  for (int i = 0; i < Nx; ++i)
+  {
+    C[4][i*Nrpath] = -2.*j*field_2[i]/dt;
+    C[4][i*Nrpath + 1] = j*field_1[i]/dt;
+    C[4][(i + 1)*Nrpath - 1] = -1.*j*field_1[i]/dt;
+  }
+
+  //setting up Mou's constant arrays
+  for (int i = 0; i < Ntot; ++i)
+  {
+    int n = calc_n(i);
+    C[0][i] = -1.*dx*j*(1/path[n] + 1/path_offset[n] + ((path[n] + path_offset[n])/2.)*(-2./pow(dx, 2) - squareMass));
     C[1][i] = j*dx/path[n];
     C[2][i] = j*dx/path_offset[n];
     C[3][i] = -1.*dx*j*(path[n] + path_offset[n])/(2.*pow(dx, 2));
