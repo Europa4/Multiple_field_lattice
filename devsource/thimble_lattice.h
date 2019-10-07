@@ -80,6 +80,7 @@ class scalar_field
 
     public:
     dcomp* fields[5]; //contains all the flowed and unflowed fields
+    dcomp* C[5];
     double* path; //sign of the path around the contour
     double* path_offset;
 
