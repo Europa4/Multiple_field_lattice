@@ -132,6 +132,39 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   {
     path_offset[i + 1] = path[i];
   }
+
+  //setting up the co-ordinate shifted arrays. Could combine them, but this won't be called much, so the legibility is prioritised over speed
+  //I imagine the O3 flag for g++ automatically tidies them up anyway
+  for (int k = 0; k < Nx; ++k)
+  {
+    for (int i = 0; i < Nrpath - 1; ++i)
+    {
+      positive_time_site[k*Nrpath + i] = k*Nrpath + i + 1;
+    }
+    positive_time_site[(k + 1)*Nrpath - 1] = k*Nrpath;
+    
+    for (int i = 1; i < Nrpath; ++i)
+    {
+      negative_time_site[k*Nrpath + i] = k*Nrpath + i - 1;
+    }
+    negative_time_site[k*Nrpath] = (k + 1)*Nrpath - 1;
+  }
+  
+  for (int i = 0; i < Nrpath; ++i)
+  {
+    for (int k = 0; k < Nx - 1; ++k)
+    {
+      positive_space_site[k*Nrpath + i] = (k + 1)*Nrpath + i;
+    }
+    positive_space_site[(Nx - 1)*Nrpath + i] = i;
+    
+    for (int k = 1; k < Nx; ++k)
+    {
+      negative_space_site[k*Nrpath + i] = (k - 1)*Nrpath + i;
+    }
+    negative_space_site[i] = (Nx - 1)*Nrpath + i;
+  }
+
 }
 
 scalar_field::~scalar_field()
@@ -303,37 +336,6 @@ void scalar_field::initialise()
     fields[2][i] = 0;
   }
 
-  //setting up the co-ordinate shifted arrays. Could combine them, but this won't be called much, so the legibility is prioritised over speed
-  //I imagine the O3 flag for g++ automatically tidies them up anyway
-  for (int k = 0; k < Nx; ++k)
-  {
-    for (int i = 0; i < Nrpath - 1; ++i)
-    {
-      positive_time_site[k*Nrpath + i] = k*Nrpath + i + 1;
-    }
-    positive_time_site[(k + 1)*Nrpath - 1] = k*Nrpath;
-    
-    for (int i = 1; i < Nrpath; ++i)
-    {
-      negative_time_site[k*Nrpath + i] = k*Nrpath + i - 1;
-    }
-    negative_time_site[k*Nrpath] = (k + 1)*Nrpath - 1;
-  }
-  
-  for (int i = 0; i < Nrpath; ++i)
-  {
-    for (int k = 0; k < Nx - 1; ++k)
-    {
-      positive_space_site[k*Nrpath + i] = (k + 1)*Nrpath + i;
-    }
-    positive_space_site[(Nx - 1)*Nrpath + i] = i;
-    
-    for (int k = 1; k < Nx; ++k)
-    {
-      negative_space_site[k*Nrpath + i] = (k - 1)*Nrpath + i;
-    }
-    negative_space_site[i] = (Nx - 1)*Nrpath + i;
-  }
 
   for (int i = 0; i < Ntot; ++i)
   {
@@ -446,19 +448,21 @@ Ntot(Nrpath*Nx),
 rng_seed(seed),
 jac_defined(false),
 rel_path(""),
-j(0,1)
+j(0,1),
+dx(1.),
+dt(0.75)
 {
-    //thimble system constructor
-    const gsl_rng_type * T;
-    gsl_rng_env_setup();
-    T = gsl_rng_default;
-    my_rngPointer = gsl_rng_alloc (T);
-    gsl_rng_set(my_rngPointer, seed);
-    
-    //determining the number of timesteps for the ODE solvers from the flow time  
-    h = 0.02; //sets the base size 
-    number_of_timesteps = int(ceil(tau/h)); //calculates how many steps this corresponds to (overshooting in the case of it not being exact)
-    h = tau/number_of_timesteps; //readusting the size of h to prevent overshooting
+  //thimble system constructor
+  const gsl_rng_type * T;
+  gsl_rng_env_setup();
+  T = gsl_rng_default;
+  my_rngPointer = gsl_rng_alloc (T);
+  gsl_rng_set(my_rngPointer, seed);
+  
+  //determining the number of timesteps for the ODE solvers from the flow time  
+  h = 0.02; //sets the base size 
+  number_of_timesteps = int(ceil(tau/h)); //calculates how many steps this corresponds to (overshooting in the case of it not being exact)
+  h = tau/number_of_timesteps; //readusting the size of h to prevent overshooting
 }
 
 thimble_system::~thimble_system()
@@ -520,7 +524,7 @@ dcomp thimble_system::calc_dS(int site, int field, int field_type)
   }
   interaction *= (scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
   dS += interaction;
-  return dS;
+  return dx*dS;
 }
 
 dcomp thimble_system::calc_dS(int site, int field_type)
@@ -556,7 +560,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2,
     interaction *= (scalars[field_1].path[scalars[field_1].calc_n(site_1)] + scalars[field_1].path_offset[scalars[field_1].calc_n(site_1)])/2.;
   }
   ddS += interaction;
-  return ddS;
+  return dx*ddS;
 }
 
 dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_type)
@@ -670,6 +674,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
         {
           k1_jac[r + Njac*c] += h*std::conj(-1.*j*calc_ddS(r, s, proposal_or - 2)*Jac[s + Njac*c]);
         }
+        printf("k1[%i] = %f%+fi \n", r + Njac*c, std::real(k1_jac[r + Njac*c]), std::imag(k1_jac[r + Njac*c])); 
         ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k1_jac[r + Njac*c]/2.;
       }
     }
@@ -802,7 +807,7 @@ dcomp thimble_system::calc_S(int field_type)
       S += (scalars[0].path[n] + scalars[0].path_offset[n])*interactions[i].base(k, this, field_type)/2.;
     }
   }
-  return S;
+  return dx*S;
 }
 
 void thimble_system::simulate(int n_burn_in, int n_simulation)
@@ -818,13 +823,14 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
 
   for (int i = 0; i < scalars.size(); ++i)
   {
-    scalars[i].intialise();
+    scalars[i].initialise();
   }
 }
 
 void thimble_system::test()
 {
   simulate(0, 0);
+  printf("number of ode steps = %i \n", number_of_timesteps);
   dcomp* jac = new dcomp[NjacSquared];
   dcomp det;
   det = calc_jacobian(jac);
@@ -838,4 +844,9 @@ void thimble_system::test()
     printf("phi[%i] = %f%+fi \n", i, std::real(scalars[0].fields[0][i]), std::imag(scalars[0].fields[0][i]));
   }
   delete[] jac;
+  
+  for (int i = 0; i < Nrpath; ++i)
+  {
+    printf("positive time site[%i] = %i \n", i, scalars[0].positive_time_site[i]);
+  }
 }

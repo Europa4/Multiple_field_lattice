@@ -107,6 +107,8 @@ class scalar_field
     scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer);
     ~scalar_field();
     scalar_field(const scalar_field &obj);
+
+    friend class thimble_system;
 };
 
 class thimble_system
@@ -118,6 +120,8 @@ class thimble_system
     int NjacSquared;
     double tau; //flowtime
     double h; //ode step size
+    double dx;
+    double dt;
     unsigned long int rng_seed;
     gsl_rng * my_rngPointer; //rng pointer for the system/simulation
     bool jac_defined;
@@ -157,6 +161,7 @@ class thimble_system
     ~thimble_system();
     
     //friendship declaration
+    friend class scalar_field;
 };
 
 #endif //THIMBLE_LATTICE_H_INCLUDED
