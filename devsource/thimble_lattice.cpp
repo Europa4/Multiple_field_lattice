@@ -2,9 +2,9 @@
 
 //simple dirac delta function
 template <class T>
-T dd(T i, T j)
+double dd(T i, T j)
 {
-  T Delta(0);
+  double Delta(0);
   if (i == j)
   {
     Delta = 1;
@@ -105,6 +105,14 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   fields[2] = new dcomp[Ntot];
   fields[3] = new dcomp[Ntot];
   fields[4] = new dcomp[Ntot];
+
+  C[0] = new dcomp[Ntot]; //configuring Mou's constant arrays
+  C[1] = new dcomp[Ntot];
+  C[2] = new dcomp[Ntot];
+  C[3] = new dcomp[Ntot];
+  C[4] = new dcomp[Ntot];
+
+  int n = 0;
   
   for (int i = 0; i < Ntot; ++i)
   {
@@ -173,6 +181,7 @@ scalar_field::~scalar_field()
     for (int i = 0; i < 5; ++i)
     {
       delete[] fields[i];
+      delete[] C[i];
     }
     delete[] occupation_number;
     delete[] field_0;
@@ -209,11 +218,12 @@ negative_space_site(new int[obj.Ntot]),
 my_rngPointer(obj.my_rngPointer),
 j(obj.j)
 {
-  fields[0] = new dcomp[obj.Ntot];
-  fields[1] = new dcomp[obj.Ntot];
-  fields[2] = new dcomp[obj.Ntot];
-  fields[3] = new dcomp[obj.Ntot];
-  fields[4] = new dcomp[obj.Ntot];
+  for (int i = 0; i < 5; ++i)
+  {
+    fields[i] = new dcomp[obj.Ntot];
+    C[i] = new dcomp[obj.Ntot];
+  }
+
   for (int i = 0; i < Nx; ++i)
   {
     occupation_number[i] = obj.occupation_number[i]; //setting values for the arrays that are copied over from the original object
@@ -231,6 +241,7 @@ j(obj.j)
     for (int k = 0; k < 5; ++k)
     {
       fields[k][i] = obj.fields[k][i];
+      C[k][i] = obj.C[k][i];
     }
   }
 
@@ -341,35 +352,47 @@ void scalar_field::initialise()
   {
     fields[0][i] = fields[2][i];
   }
+
+  //setting up Mou's constant arrays
+  for (int i = 0; i < Ntot; ++i)
+  {
+    int n = calc_n(i);
+    C[0][i] = -1.*dx*j*(1/path[n] + 1/path_offset[n] + (path[n] + path_offset[n]/2.)*(-2./pow(dx, 2) - squareMass));
+    C[1][i] = j*dx/path[n];
+    C[2][i] = j*dx/path_offset[n];
+    C[3][i] = -1.*dx*j*(path[n] + path_offset[n])/(2.*pow(dx, 2));
+    C[4][i] = 0.;
+  }
+  //edge terms for the edge effects
+  for (int i = 0; i < Nx; ++i)
+  {
+    C[4][i*Nrpath] = -2.*j*field_2[i]/dt;
+    C[4][i*Nrpath + 1] = j*field_1[i]/dt;
+    C[4][(i + 1)*Nrpath - 1] = -1.*j*field_1[i]/dt;
+  }
 }
 
 dcomp scalar_field::free_action(int site, int field_type)
 {
   //Standard P^2 - m^2 action
-  int n = calc_n(site);
-  dcomp S = pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2)/(2.*path[n]) 
-  - (((path[n] + path_offset[n])/2.)*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2))/(2*pow(dx,2)) + squareMass*pow(fields[field_type][site], 2));
-  S += edge_effects(site, field_type);
+  dcomp S = -1.*(C[1][site]/2.)*pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2) 
+    - pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2) - squareMass*pow(fields[field_type][site], 2)));
   return S;
 }
 
 dcomp scalar_field::free_action_derivative(int site, int field_type)
 {
   //derivative of the above action
-  int n = calc_n(site);
-  
-  dcomp dS = (fields[field_type][site] - fields[field_type][positive_time_site[site]])/path[n] + (fields[field_type][site] - fields[field_type][negative_time_site[site]])/path_offset[n]
-  - ((path[n] + path_offset[n])/2)*((2.*fields[field_type][site] - fields[field_type][positive_space_site[site]] - fields[field_type][negative_space_site[site]])/pow(dx,2) + squareMass*fields[field_type][site]);
-  dS += edge_effects_derivative(site);
+  dcomp dS = C[0][site]*fields[field_type][site] + C[1][site]*fields[field_type][positive_time_site[site]] + C[2][site]*fields[field_type][negative_time_site[site]]
+    + C[3][site]*(fields[field_type][positive_space_site[site]] + fields[field_type][negative_space_site[site]]) + C[4][site];
   return dS;
 }
 
 dcomp scalar_field::free_action_second_derivative(int site_1, int site_2)
 {
   //second derivative calculation
-  int n = calc_n(site_1);
-  dcomp ddS = (dd(site_1, site_2) - dd(positive_time_site[site_1], site_2))/path[n] + (dd(site_1, site_2) - dd(negative_time_site[site_1], site_2))/path_offset[n]
-    - ((path[n] + path_offset[n])/2.)*((2*dd(site_1, site_2) - dd(positive_space_site[site_1], site_2) - dd(negative_space_site[site_1], site_2))/pow(dx, 2) + squareMass*dd(site_1, site_2));
+  dcomp ddS = C[0][site_1]*dd(site_1, site_2) + C[1][site_1]*dd(positive_time_site[site_1], site_2) + C[2][site_1]*dd(negative_time_site[site_1], site_2)
+    + C[3][site_1]*(dd(positive_space_site[site_1], site_2) + dd(negative_space_site[site_1], site_2));
   return ddS;
 }
 
