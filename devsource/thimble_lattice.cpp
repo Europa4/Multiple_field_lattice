@@ -357,7 +357,7 @@ void scalar_field::initialise()
   for (int i = 0; i < Ntot; ++i)
   {
     int n = calc_n(i);
-    C[0][i] = -1.*dx*j*(1/path[n] + 1/path_offset[n] + (path[n] + [path_offset[n]]/2.)*(-2./pow(dx, 2) - squareMass));
+    C[0][i] = -1.*dx*j*(1/path[n] + 1/path_offset[n] + (path[n] + path_offset[n]/2.)*(-2./pow(dx, 2) - squareMass));
     C[1][i] = j*dx/path[n];
     C[2][i] = j*dx/path_offset[n];
     C[3][i] = -1.*dx*j*(path[n] + path_offset[n])/(2.*pow(dx, 2));
@@ -387,6 +387,13 @@ void scalar_field::initialise()
     C[4][i*Nrpath] = -2.*j*field_2[i]/dt;
     C[4][i*Nrpath + 1] = j*field_1[i]/dt;
     C[4][(i + 1)*Nrpath - 1] = -1.*j*field_1[i]/dt;
+  }
+
+  //applying the anti-periodic bounday terms
+  for(int i = 0; i < Nx; ++i)
+  {
+    C[1][(i + 1)*Nrpath - 1] *= -1.;
+    C[2][i*Nrpath] *= -1.;
   }
 }
 
@@ -563,9 +570,9 @@ dcomp thimble_system::calc_dS(int site, int field, int field_type)
     //looping through the first derivatives of all the interactions (derivatives with respect to this field)
     interaction += interactions[i].first_derivative(site, field, this, field_type); 
   }
-  interaction *= (scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
+  interaction *= -1.*dx*j*(scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
   dS += interaction;
-  return dx*dS;
+  return dS;
 }
 
 dcomp thimble_system::calc_dS(int site, int field_type)
@@ -598,10 +605,10 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2,
     {
       interaction *= interactions[i].second_derivative(site_1, field_1, field_2, this, field_type);
     }
-    interaction *= (scalars[field_1].path[scalars[field_1].calc_n(site_1)] + scalars[field_1].path_offset[scalars[field_1].calc_n(site_1)])/2.;
+    interaction *= -1.*j*dx*(scalars[field_1].path[scalars[field_1].calc_n(site_1)] + scalars[field_1].path_offset[scalars[field_1].calc_n(site_1)])/2.;
   }
   ddS += interaction;
-  return dx*ddS;
+  return ddS;
 }
 
 dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_type)
@@ -706,16 +713,15 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   {
     for (int r = 0; r < Njac; ++r)
     {
-      k1_scalar[r] = h*std::conj(-1.*j*calc_dS(r, proposal_or - 2));
+      k1_scalar[r] = h*std::conj(calc_dS(r, proposal_or - 2));
       ajustment_scalar[r] = working_scalar[r] + k1_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
       {
-        k1_jac[r + Njac*c] = 0;
+        k1_jac[r + Njac*c] = 0.;
         for (int s = 0; s < Njac; ++s)
         {
-          k1_jac[r + Njac*c] += h*std::conj(-1.*j*calc_ddS(r, s, proposal_or - 2)*Jac[s + Njac*c]);
+          k1_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, proposal_or - 2)*Jac[s + Njac*c]);
         }
-        printf("k1[%i] = %f%+fi \n", r + Njac*c, std::real(k1_jac[r + Njac*c]), std::imag(k1_jac[r + Njac*c])); 
         ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k1_jac[r + Njac*c]/2.;
       }
     }
@@ -725,14 +731,15 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
 
     for (int r = 0; r < Njac; ++r)
     {
-      k2_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
+      k2_scalar[r] = h*std::conj(calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
         k2_jac[r + Njac*c] = 0;
         for(int s = 0; s < Njac; ++s)
         {
-          k2_jac[r + Njac*c] += h*std::conj(-1.*j*calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+          k2_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
+        printf("k2[%i] = %f%+fi \n", r + Njac*c, std::real(k2_jac[r + Njac*c]), std::imag(k2_jac[r + Njac*c])); 
       }
     }
 
@@ -748,13 +755,13 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
 
     for (int r = 0; r < Njac; ++r)
     {
-      k3_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
+      k3_scalar[r] = h*std::conj(calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
         k3_jac[r + Njac*c] = 0;
         for (int s = 0; s < Njac; ++s)
         {
-          k3_jac[r + Njac*c] += h*std::conj(-1.*j*calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+          k3_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
       }
     }
@@ -771,13 +778,13 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
 
     for (int r = 0; r < Njac; ++r)
     {
-      k4_scalar[r] = h*std::conj(-1.*j*calc_dS(r, ajustment));
+      k4_scalar[r] = h*std::conj(calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
         k4_jac[r + Njac*c] = 0;
         for(int s = 0; s < Njac; ++s)
         {
-          k4_jac[r + Njac*c] += h*std::conj(-1.*j*calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+          k4_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
       }
     }
@@ -845,10 +852,10 @@ dcomp thimble_system::calc_S(int field_type)
     for (int k = 0; k < Ntot; ++k)
     {
       n = scalars[0].calc_n(k);
-      S += (scalars[0].path[n] + scalars[0].path_offset[n])*interactions[i].base(k, this, field_type)/2.;
+      S += -1.*j*dx*(scalars[0].path[n] + scalars[0].path_offset[n])*interactions[i].base(k, this, field_type)/2.;
     }
   }
-  return dx*S;
+  return S;
 }
 
 void thimble_system::simulate(int n_burn_in, int n_simulation)
