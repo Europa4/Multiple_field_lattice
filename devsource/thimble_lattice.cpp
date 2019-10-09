@@ -739,7 +739,6 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
         {
           k2_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
-        printf("k2[%i] = %f%+fi \n", r + Njac*c, std::real(k2_jac[r + Njac*c]), std::imag(k2_jac[r + Njac*c])); 
       }
     }
 
@@ -763,7 +762,6 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
         {
           k3_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
-        printf("k3[%i] = %f%+fi \n", r + Njac*c, std::real(k3_jac[r + Njac*c]), std::imag(k3_jac[r + Njac*c])); 
       }
     }
 
@@ -789,13 +787,12 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
         }
       }
     }
-
     for (int r = 0; r < Njac; ++r)
     {
       working_scalar[r] += (k1_scalar[r] + 2.*k2_scalar[r] + 2.*k3_scalar[r] + k4_scalar[r])/6.;
       for (int c = 0; c < Njac; ++c)
       {
-        Jac[r + Njac*c] += (k1_jac[r] + 2.*k2_jac[r] + 2.*k3_jac[r] + k4_jac[r])/6.;
+        Jac[r + Njac*c] += (k1_jac[r + Njac*c] + 2.*k2_jac[r + Njac*c] + 2.*k3_jac[r + Njac*c] + k4_jac[r + Njac*c])/6.;
       }
     }
     //returning the flowed fields to the scalar fields object
@@ -870,6 +867,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   proposed_invJ = new dcomp[NjacSquared];
   jac_defined = true; //this ensures the correct memory management happens
 
+  //initialising the fields
   for (int i = 0; i < scalars.size(); ++i)
   {
     scalars[i].initialise();
@@ -883,19 +881,5 @@ void thimble_system::test()
   dcomp* jac = new dcomp[NjacSquared];
   dcomp det;
   det = calc_jacobian(jac);
-  printf("det J = %f%+f \n", std::real(det), std::imag(det));
-  for (int i = 0; i < NjacSquared; ++i)
-  {
-    printf("J[%i] = %f%+f \n", i, std::real(jac[i]), std::imag(jac[i]));
-  }
-  for (int i = 0; i < Ntot; ++i)
-  {
-    printf("phi[%i] = %f%+fi \n", i, std::real(scalars[0].fields[0][i]), std::imag(scalars[0].fields[0][i]));
-  }
   delete[] jac;
-  
-  for (int i = 0; i < Nrpath; ++i)
-  {
-    printf("positive time site[%i] = %i \n", i, scalars[0].positive_time_site[i]);
-  }
 }
