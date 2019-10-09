@@ -763,6 +763,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
         {
           k3_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
+        printf("k3[%i] = %f%+fi \n", r + Njac*c, std::real(k3_jac[r + Njac*c]), std::imag(k3_jac[r + Njac*c])); 
       }
     }
 
