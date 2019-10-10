@@ -6,6 +6,7 @@
 
 #include "Prot.h"
 using namespace std;
+#include <limits>
 /*
 class tester_class
 {
@@ -58,8 +59,8 @@ int main(int argc, char **argv)
   sys.add_scalar_field(1.0);
   //sys.add_interaction(1.0, 4);
   //printf("the action = %f%+f \n", std::real(sys.calc_S()), std::imag(sys.calc_S()));
-  sys.test();
-
+  //sys.test();
+  printf("long double max value: %e \n", numeric_limits<long double>::max());
   MPI_Finalize(); //closing the MPI enviroment
   return 0;
 }

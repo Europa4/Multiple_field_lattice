@@ -498,7 +498,8 @@ jac_defined(false),
 rel_path(""),
 j(0,1),
 dx(1.),
-dt(0.75)
+dt(0.75),
+sigma(0.07071067812)
 {
   //thimble system constructor
   const gsl_rng_type * T;
@@ -856,12 +857,60 @@ dcomp thimble_system::calc_S(int field_type)
   return S;
 }
 
+void thimble_system::update()
+{
+  dcomp* eta = new dcomp[Njac];
+  dcomp* Delta = new dcomp[Njac]; 
+
+  for(int i = 0; i < Njac; ++i)
+  {
+    //setting up the proposal on the complex manifold
+    eta[i] = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
+  }
+
+  delete[] eta;
+  delete[] Delta;
+}
+
+void thimble_system::invert_jacobian(dcomp Jac[], dcomp invJac[])
+{
+  int s;
+  gsl_permutation* p = gsl_permutation_alloc(Njac);
+  gsl_matrix_complex* mJ = gsl_matrix_complex_alloc(Njac, Njac); //setting up GSL matricies
+  gsl_matrix_complex* invmJ = gsl_matrix_complex_alloc(Njac, Njac);
+
+  for (int r = 0; r < Njac; ++r)
+  {
+    for (int c = 0; c < Njac; ++c)
+    {
+      //assiginging to a GSL matrix structure
+      gsl_matrix_complex_set(mJ, r, c, gsl_complex_rect(std::real(J[r + Njac*c]), std::imag(J[r + Njac*c])));
+    }
+  }
+
+  gsl_linalg_complex_LU_decomp(mJ, p, &s); //splitting into triangle matrices
+  gsl_linalg_complex_LU_invert(mJ, p, invmJ); //inverting the new triangle matricies
+
+  for (int r = 0; r < Njac; ++r)
+  {
+    for (int c = 0; c < Njac; ++c)
+    {
+      //returning the GSL matrix to the linear representation
+      invJac[r + Njac*c] = GSL_REAL(gsl_matrix_complex_get(invmJ, r, c)) + j*GSL_IMAG(gsl_matrix_complex_get(invmJ, r, c));
+    }
+  }
+
+  gsl_permutation_free(p);
+  gsl_matrix_complex_free(mJ);
+  gsl_matrix_complex_free(invmJ); //freeing the GSL pointers
+}
+
 void thimble_system::simulate(int n_burn_in, int n_simulation)
 {
   Njac = scalars.size()*Ntot; //setting the size of the Jacobian "matricies"
   NjacSquared = pow(Njac, 2);
 
-  J = new dcomp[NjacSquared]; //setting up the arrays that hhold the Jacobian matricies
+  J = new dcomp[NjacSquared]; //setting up the arrays that hold the Jacobian matricies
   proposed_J = new dcomp[NjacSquared];
   invJ = new dcomp[NjacSquared];
   proposed_invJ = new dcomp[NjacSquared];
@@ -872,6 +921,10 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   {
     scalars[i].initialise();
   }
+
+  detJ = calc_jacobian(J);
+  invert_jacobian(J, invJ); //setup is now complete, the Jacobian, it's inverse, and it's determinant have been calculated, and the scalars are primed.
+
 }
 
 void thimble_system::test()
