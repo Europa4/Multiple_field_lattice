@@ -123,15 +123,15 @@ class thimble_system
     double h; //ode step size
     double dx;
     double dt;
+    double sigma; //proposal step size when put into the gaussian distribution
     unsigned long int rng_seed;
     gsl_rng * my_rngPointer; //rng pointer for the system/simulation
     bool jac_defined;
     dcomp* J;
-    dcomp* proposed_J;
     dcomp* invJ;
-    dcomp* proposed_invJ;
+    dcomp* conj_J;
     dcomp detJ;
-    dcomp proposed_detJ;
+    dcomp S;
     std::string rel_path;
     dcomp j;
 
@@ -143,6 +143,8 @@ class thimble_system
     field_id_return calc_field(int master_site);
     void sync_ajustment(dcomp ajustment[]);
     //field type controls which field is used to calculate s, ds, and dds. 0 is flowed, 1 is proposed_flowed, 2 is base, 3 is proposed_base, 4 is ajustment used by the ODE solver 
+    void update();
+    void invert_jacobian(dcomp Jac[], dcomp invJac[]);
 
     public:
     std::vector<scalar_field> scalars; //the scalar fields of the simulation SHOULDN'T BE PUBLIC, ONLY IS FOR TESTING

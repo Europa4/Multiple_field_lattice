@@ -498,7 +498,8 @@ jac_defined(false),
 rel_path(""),
 j(0,1),
 dx(1.),
-dt(0.75)
+dt(0.75),
+sigma(0.07071067812)
 {
   //thimble system constructor
   const gsl_rng_type * T;
@@ -519,9 +520,8 @@ thimble_system::~thimble_system()
   if (jac_defined)
   {
     delete[] J;
-    delete[] proposed_J;
     delete[] invJ;
-    delete[] proposed_invJ;
+    delete[] conj_J;
   }
 }
 
@@ -856,15 +856,102 @@ dcomp thimble_system::calc_S(int field_type)
   return S;
 }
 
+void thimble_system::update()
+{
+  bool proposal = true;
+  dcomp proposed_action, proposed_detJ;
+  double log_proposal;
+  dcomp* eta = new dcomp[Njac];
+  dcomp* Delta = new dcomp[Njac];
+  dcomp* proposed_J = new dcomp[NjacSquared];
+  dcomp* proposed_J_conj = new dcomp[NjacSquared];
+  
+
+  for(int i = 0; i < Njac; ++i)
+  {
+    //setting up the proposal on the complex manifold
+    eta[i] = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
+  }
+
+  for(int c = 0; c < Njac; ++c)
+  {
+    Delta[c] = 0.;
+    for(int r = 0; r < Njac; ++r)
+    {
+      //matrix multiplication using the inverse of J to transport the vector eta from the complex manifold to the real
+      //this *is* right, the elements should be swapped like this. Don't "debug" that out while tired.
+      Delta[c] += std::real(invJ[c + Njac*r]*eta[r]);
+    }
+  }
+
+  //creating new basefield condtions
+  for(int i = 0; i < scalars.size(); ++i)
+  {
+    for(int k = 0; k < Ntot; ++k)
+    {
+      scalars[i].fields[3][k] = scalars.fields[2][k] + Delta[k + i*Ntot];
+    }
+  }
+
+  //calculating the Jacobian, it's determinant, conjugate, and the action of the proposed field state
+  proposed_detJ = calc_jacobian(proposed_J, proposal);
+  proposed_action = calc_S(1);
+  log_proposal = std::log(std::abs(proposed_detJ));
+  for (int r = 0; r < Njac; ++r)
+  {
+    for (int c = 0; c < Njac; ++c)
+    {
+      proposed_J_conj[r + Njac*c] = std::conj(proposed_J[c + Njac*r]);
+    }
+  }
+
+  delete[] eta;
+  delete[] Delta;
+  delete[] proposed_J;
+  delete[] proposed_J_conj;
+}
+
+void thimble_system::invert_jacobian(dcomp Jac[], dcomp invJac[])
+{
+  int s;
+  gsl_permutation* p = gsl_permutation_alloc(Njac);
+  gsl_matrix_complex* mJ = gsl_matrix_complex_alloc(Njac, Njac); //setting up GSL matricies
+  gsl_matrix_complex* invmJ = gsl_matrix_complex_alloc(Njac, Njac);
+
+  for (int r = 0; r < Njac; ++r)
+  {
+    for (int c = 0; c < Njac; ++c)
+    {
+      //assiginging to a GSL matrix structure
+      gsl_matrix_complex_set(mJ, r, c, gsl_complex_rect(std::real(J[r + Njac*c]), std::imag(J[r + Njac*c])));
+    }
+  }
+
+  gsl_linalg_complex_LU_decomp(mJ, p, &s); //splitting into triangle matrices
+  gsl_linalg_complex_LU_invert(mJ, p, invmJ); //inverting the new triangle matricies
+
+  for (int r = 0; r < Njac; ++r)
+  {
+    for (int c = 0; c < Njac; ++c)
+    {
+      //returning the GSL matrix to the linear representation
+      invJac[r + Njac*c] = GSL_REAL(gsl_matrix_complex_get(invmJ, r, c)) + j*GSL_IMAG(gsl_matrix_complex_get(invmJ, r, c));
+    }
+  }
+
+  gsl_permutation_free(p);
+  gsl_matrix_complex_free(mJ);
+  gsl_matrix_complex_free(invmJ); //freeing the GSL pointers
+}
+
 void thimble_system::simulate(int n_burn_in, int n_simulation)
 {
   Njac = scalars.size()*Ntot; //setting the size of the Jacobian "matricies"
   NjacSquared = pow(Njac, 2);
 
-  J = new dcomp[NjacSquared]; //setting up the arrays that hhold the Jacobian matricies
-  proposed_J = new dcomp[NjacSquared];
+  J = new dcomp[NjacSquared]; //setting up the arrays that hold the Jacobian matricies
   invJ = new dcomp[NjacSquared];
-  proposed_invJ = new dcomp[NjacSquared];
+  conj_J = new dcomp[NjacSquared];
   jac_defined = true; //this ensures the correct memory management happens
 
   //initialising the fields
@@ -872,6 +959,19 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   {
     scalars[i].initialise();
   }
+
+  detJ = calc_jacobian(J);
+  //calculating the conjugate of the jacobian
+  for (int r = 0; r < Njac; ++r)
+  {
+    for (int c = 0; c < Njac; ++c)
+    {
+      conj_J[r + Njac*c] = std::conj(J[c + Njac*r]);
+    }
+  }
+  S = calc_S(2);
+  invert_jacobian(J, invJ); //setup is now complete, the Jacobian, it's inverse, conjugate, and it's determinant have been calculated, and the scalars are primed.
+
 }
 
 void thimble_system::test()
