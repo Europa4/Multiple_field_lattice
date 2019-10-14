@@ -499,7 +499,8 @@ rel_path(""),
 j(0,1),
 dx(1.),
 dt(0.75),
-sigma(0.07071067812)
+sigma(0.07071067812),
+delta(0.1)
 {
   //thimble system constructor
   const gsl_rng_type * T;
@@ -869,7 +870,7 @@ void thimble_system::update()
   dcomp* delta_J = new dcomp[Njac];
   dcomp* proposed_J_delta = new dcomp[Njac];
   dcomp* J_delta = new dcomp[Njac];
-  double matrix_exponenet, proposed_matrix_exponenet;
+  double matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
 
   for(int i = 0; i < Njac; ++i)
   {
@@ -893,7 +894,7 @@ void thimble_system::update()
   {
     for(int k = 0; k < Ntot; ++k)
     {
-      scalars[i].fields[3][k] = scalars.fields[2][k] + Delta[k + i*Ntot];
+      scalars[i].fields[3][k] = scalars[i].fields[2][k] + Delta[k + i*Ntot];
     }
   }
 
@@ -931,9 +932,33 @@ void thimble_system::update()
   for (int r = 0; r < Njac; ++r)
   {
     matrix_exponenet += std::real(delta_J[r]*J_delta[r]);
-    proposed_matrix_exponenet += std::real(proposed_delta_J[r]*proposed_J_delta[r]):
+    proposed_matrix_exponenet += std::real(proposed_delta_J[r]*proposed_J_delta[r]);
   }
-
+  //exponenet for the MC test
+  exponenet = std::real(S - proposed_action) + 2.*log_proposal - 2.*std::log(std::real(detJ)) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
+  check = gsl_rng_uniform(my_rngPointer);
+  if (std::exp(exponenet) > check)
+  {
+    //proposal was accepted, transfering all the proposed parameters to the storage
+    detJ = proposed_detJ;
+    S = proposed_action;
+    for (int i = 0; i < NjacSquared; ++i)
+    {
+      J[i] = proposed_J[i];
+      conj_J[i] = proposed_J_conj[i];
+    } 
+    //transfering over all the scalar fields
+    for (int i = 0; i < scalars.size(); ++i)
+    {
+      for (int k = 0; k < Ntot; ++k)
+      {
+        scalars[i].fields[0][k] = scalars[i].fields[1][k];
+        scalars[i].fields[2][k] = scalars[i].fields[3][k];
+      }
+    }
+    //inverting the new jacobian
+    invert_jacobian(J, invJ);
+  }
   delete[] eta;
   delete[] Delta;
   delete[] proposed_J;

@@ -123,6 +123,7 @@ class thimble_system
     double h; //ode step size
     double dx;
     double dt;
+    double delta;
     double sigma; //proposal step size when put into the gaussian distribution
     unsigned long int rng_seed;
     gsl_rng * my_rngPointer; //rng pointer for the system/simulation
