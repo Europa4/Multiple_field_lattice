@@ -871,6 +871,7 @@ void thimble_system::update()
   dcomp* proposed_J_delta = new dcomp[Njac];
   dcomp* J_delta = new dcomp[Njac];
   double matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
+  int output = 0; //this is the return value
 
   for(int i = 0; i < Njac; ++i)
   {
@@ -958,6 +959,7 @@ void thimble_system::update()
     }
     //inverting the new jacobian
     invert_jacobian(J, invJ);
+    output = 1;
   }
   delete[] eta;
   delete[] Delta;
@@ -967,9 +969,10 @@ void thimble_system::update()
   delete[] delta_J;
   delete[] proposed_J_delta;
   delete[] J_delta;
+  return output;
 }
 
-void thimble_system::invert_jacobian(dcomp Jac[], dcomp invJac[])
+int thimble_system::invert_jacobian(dcomp Jac[], dcomp invJac[])
 {
   int s;
   gsl_permutation* p = gsl_permutation_alloc(Njac);
@@ -1029,7 +1032,6 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   }
   S = calc_S(2);
   invert_jacobian(J, invJ); //setup is now complete, the Jacobian, it's inverse, conjugate, and it's determinant have been calculated, and the scalars are primed.
-
 }
 
 void thimble_system::test()
