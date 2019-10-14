@@ -634,7 +634,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_type)
 }
 
 field_id_return thimble_system::calc_field(int master_site)
-{
+{ //returns a struct with the field ID and site as members
   field_id_return field_setup;
   field_setup.field_number = 0;
   while (master_site > Ntot)
@@ -647,7 +647,7 @@ field_id_return thimble_system::calc_field(int master_site)
 }
 
 void thimble_system::sync_ajustment(dcomp ajustment[])
-{
+{ //forces the intermediate fields in the ode solver back into the relevant fields
   for(int i = 0; i < scalars.size(); ++i)
   {
     for(int r = 0; r < Ntot; ++r)
@@ -865,7 +865,11 @@ void thimble_system::update()
   dcomp* Delta = new dcomp[Njac];
   dcomp* proposed_J = new dcomp[NjacSquared];
   dcomp* proposed_J_conj = new dcomp[NjacSquared];
-  
+  dcomp* proposed_delta_J = new dcomp[Njac];
+  dcomp* delta_J = new dcomp[Njac];
+  dcomp* proposed_J_delta = new dcomp[Njac];
+  dcomp* J_delta = new dcomp[Njac];
+  double matrix_exponenet, proposed_matrix_exponenet;
 
   for(int i = 0; i < Njac; ++i)
   {
@@ -905,10 +909,39 @@ void thimble_system::update()
     }
   }
 
+  //matrix multiplication required to calculate the accpetance exponenet
+  for(int r = 0; r < Njac; ++r)
+  {
+    proposed_delta_J[r] = 0;
+    delta_J[r] = 0;
+    proposed_J_delta[r] = 0;
+    J_delta[r] = 0;
+    for (int c = 0; c < Njac; ++c)
+    {
+      proposed_delta_J[r] += Delta[c]*proposed_J[c + r*Njac];
+      delta_J[r] += Delta[c]*J[c + r*Njac];
+      proposed_J_delta[r] += Delta[c]*proposed_J_conj[r + Njac*c];
+      J_delta[r] += Delta[c]*conj_J[r + Njac*c];
+    }
+  }
+
+  //calculating the matrix cross terms
+  matrix_exponenet = 0;
+  proposed_matrix_exponenet = 0;
+  for (int r = 0; r < Njac; ++r)
+  {
+    matrix_exponenet += std::real(delta_J[r]*J_delta[r]);
+    proposed_matrix_exponenet += std::real(proposed_delta_J[r]*proposed_J_delta[r]):
+  }
+
   delete[] eta;
   delete[] Delta;
   delete[] proposed_J;
   delete[] proposed_J_conj;
+  delete[] proposed_delta_J;
+  delete[] delta_J;
+  delete[] proposed_J_delta;
+  delete[] J_delta;
 }
 
 void thimble_system::invert_jacobian(dcomp Jac[], dcomp invJac[])
@@ -977,7 +1010,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
 void thimble_system::test()
 {
   simulate(0, 0);
-  printf("number of ode steps = %i \n", number_of_timesteps);
+  //printf("number of ode steps = %i \n", number_of_timesteps);
   dcomp* jac = new dcomp[NjacSquared];
   dcomp det;
   det = calc_jacobian(jac);
