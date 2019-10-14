@@ -1015,6 +1015,8 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   conj_J = new dcomp[NjacSquared];
   jac_defined = true; //this ensures the correct memory management happens
 
+  dcomp* state_storage = new dcomp[(Njac + 2)*n_simulation]; //This stores the data between updates and will be saved to a file
+
   //initialising the fields
   for (int i = 0; i < scalars.size(); ++i)
   {
@@ -1032,6 +1034,31 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   }
   S = calc_S(2);
   invert_jacobian(J, invJ); //setup is now complete, the Jacobian, it's inverse, conjugate, and it's determinant have been calculated, and the scalars are primed.
+
+  for (int i = 0; i < n_burn_in; ++i)
+  {
+    update();
+  }
+  acceptance_rate = 0.;
+  for(int i = 0; i < n_simulation; ++i)
+  {
+    acceptance_rate += update(); //calculating the acceptance rate from the return value of the update
+    //storing the values of the fields, the action, and the Jacobian in a unified vector to be written to file later
+    for (int k = 0; k < scalars.size(); ++k)
+    {
+      for (int r = 0; r < Ntot; ++r)
+      {
+        state_storage[i*(Njac + 2) + k*Ntot + r] = scalars[k].fields[0][r];
+      }
+    }
+    state_storage[i*(Njac + 2) + scalars.size()*Ntot] = S;
+    state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = std::log(std::real(detJ)) +j*std::arg(detJ);
+  }
+  acceptance_rate /= n_simulation;
+
+  //TODO: write file IO section
+
+  delete[] state_storage;
 }
 
 void thimble_system::test()
