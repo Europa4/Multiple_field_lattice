@@ -496,6 +496,7 @@ Ntot(Nrpath*Nx),
 rng_seed(seed),
 jac_defined(false),
 rel_path(""),
+file_name("0"),
 j(0,1),
 dx(1.),
 dt(0.75),
@@ -857,7 +858,7 @@ dcomp thimble_system::calc_S(int field_type)
   return S;
 }
 
-void thimble_system::update()
+int thimble_system::update()
 {
   bool proposal = true;
   dcomp proposed_action, proposed_detJ;
@@ -972,7 +973,7 @@ void thimble_system::update()
   return output;
 }
 
-int thimble_system::invert_jacobian(dcomp Jac[], dcomp invJac[])
+void thimble_system::invert_jacobian(dcomp Jac[], dcomp invJac[])
 {
   int s;
   gsl_permutation* p = gsl_permutation_alloc(Njac);
@@ -1016,6 +1017,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   jac_defined = true; //this ensures the correct memory management happens
 
   dcomp* state_storage = new dcomp[(Njac + 2)*n_simulation]; //This stores the data between updates and will be saved to a file
+  std::ofstream data_storage;
 
   //initialising the fields
   for (int i = 0; i < scalars.size(); ++i)
@@ -1056,8 +1058,33 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   }
   acceptance_rate /= n_simulation;
 
-  //TODO: write file IO section
+  data_storage.open(rel_path + file_name);
+  data_storage << rng_seed << ",";
+  for(int i = 0; i < scalars.size(); ++i)
+  {
+    for(int k = 0; k < Nx; ++k)
+    {
+      data_storage << std::real(scalars[i].field_0[k]) << "," << std::imag(scalars[i].field_0[k]) << ",";
+    }
+  }
 
+  for (int i = 0; i < scalars.size(); ++i)
+  {
+    for (int k = 0; k < Nx; ++k)
+    {
+      data_storage << std::real(scalars[i].field_1[k]) << "," << std::imag(scalars[i].field_1[k]) << ",";
+    }
+  }
+  data_storage << delta << "," << tau << "," << acceptance_rate << std::endl;
+  for(int i = 0; i < n_simulation; ++i)
+  {
+    for (int k = 0; k < Njac + 1; ++k)
+    {
+      data_storage << std::real(state_storage[i*(Njac + 2) + k]) << "," << std::imag(state_storage[i*(Njac + 2) + k]) << ",";
+    }
+    data_storage << std::real(state_storage[i*(Njac + 2) + Njac + 1]) << "," << std::imag(state_storage[i*(Njac + 2) + Njac + 1]) << std::endl;
+  }
+  data_storage.close();
   delete[] state_storage;
 }
 
