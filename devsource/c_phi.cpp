@@ -696,8 +696,8 @@ void c_phi::update()
       flowedField[r] = proposed_flowedField[r];
       for (int c = 0; c < Ntot; ++c)
       {
-	J[r][c] = proposed_J[r][c];
-	conj_J[r][c] = proposed_conj_J[r][c];
+	    J[r][c] = proposed_J[r][c];
+	    conj_J[r][c] = proposed_conj_J[r][c];
       }
     }
     invert_jacobian();
