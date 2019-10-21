@@ -53,16 +53,15 @@ int main(int argc, char **argv)
   c_phi phi(1.0, 0.5, 0.0, 0.1, seed);
   phi.simulate(pow(10,3), pow(10,5), 1, 50);
   */
- for(int i = 0; i < 200; ++i)
- {
-  thimble_system sys(1, 10, 1.5, 5);
-  sys.add_scalar_field(1.0);
-  sys.set_path("Data/");
-  sys.set_name("phi_" + std::to_string(i));
-  sys.simulate(pow(10, 3), pow(10, 5));
- }
-  //sys.add_interaction(1.0, 4);
-  //sys.test();
+  for(int i = 0; i < 50; ++i)
+  {
+    thimble_system sys(1, 10, 1.5, 5);
+    sys.add_scalar_field(1.0);
+    sys.set_path("Data/");
+    sys.set_name("phi_" + std::to_string(i));
+    sys.simulate(pow(10, 3), pow(10, 5));
+  }
+ 
   MPI_Finalize(); //closing the MPI enviroment
   return 0;
 }

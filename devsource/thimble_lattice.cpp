@@ -136,7 +136,7 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   }
 
   path_offset[0] = -1.*dt;
-  for (int i = 0; i < Nrpath; ++i)
+  for (int i = 0; i < Nrpath - 1; ++i)
   {
     path_offset[i + 1] = path[i];
   }
@@ -564,7 +564,7 @@ void thimble_system::set_path(std::string new_path)
 
 dcomp thimble_system::calc_dS(int site, int field, int field_type)
 {
-  dcomp dS; //derivative of the action
+  dcomp dS = 0; //derivative of the action
   dcomp interaction = 0;
   dS = scalars[field].free_action_derivative(site, field_type); //free field kinetic contribution
   for (int i = 0; i < interactions.size(); ++i)
@@ -676,7 +676,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   dcomp* k4_jac = new dcomp[NjacSquared];
   int ajustment = 4;
 
-  int s;
+  int s = 1;
   gsl_permutation* p = gsl_permutation_alloc(Njac);
   gsl_matrix_complex* mJ = gsl_matrix_complex_alloc(Njac, Njac);
   gsl_complex det_gsl;
@@ -691,6 +691,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   {
     for (int k = 0; k < Ntot; ++k)
     {
+      scalars[i].fields[proposal_or - 2][k] = scalars[i].fields[proposal_or][k];
       working_scalar[i*Ntot + k] = scalars[i].fields[proposal_or][k];
     }
   }
@@ -1034,7 +1035,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
       conj_J[r + Njac*c] = std::conj(J[c + Njac*r]);
     }
   }
-  S = calc_S(2);
+  S = calc_S(0);
   invert_jacobian(J, invJ); //setup is now complete, the Jacobian, it's inverse, conjugate, and it's determinant have been calculated, and the scalars are primed.
 
   for (int i = 0; i < n_burn_in; ++i)
@@ -1090,10 +1091,16 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
 
 void thimble_system::test()
 {
-  simulate(0, 0);
+  simulate(0, 100);
   //printf("number of ode steps = %i \n", number_of_timesteps);
+  /*
   dcomp* jac = new dcomp[NjacSquared];
   dcomp det;
-  det = calc_jacobian(jac);
+  scalars[0].initialise();
+  for(int i = 0; i < 100; ++i)
+  {
+    det = calc_jacobian(jac);
+  }
   delete[] jac;
+  */
 }
