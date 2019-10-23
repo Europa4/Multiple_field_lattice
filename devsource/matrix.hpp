@@ -16,7 +16,7 @@ template <class T> class matrix
 
     public:
     void set_element(int r, int c, T val);
-    T access_element(int r, int c); {return storage[r + size_r*c];}
+    T get_element(int r, int c); {return storage[r + size_r*c];}
 
     //constructors and destructors
     matrix(int size_r, int size_c);

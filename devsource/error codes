@@ -2,3 +2,4 @@ Error codes:
 5	Invalid mass set
 6   Attempting to add a new field after adding interactions. Please add all fields before setting interactions.
 7   Matrix is singular, LU decomposition impossible
+8   Matrix multiplication impossible due to dimentions

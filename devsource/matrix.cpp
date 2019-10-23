@@ -24,6 +24,44 @@ template <class T>matrix::~matrix()
     delete[] LU;
 }
 
+template <class T>matrix::matrix(const matrix obj) : size_r(obj.size_r),
+size_c(obj.size_c),
+d(obj.d),
+square(obj.square),
+storage(new T[obj.size_c*obj.size_r]),
+LU(new T[obj.size_c*obj.size_r])
+{
+    for(int i = 0; i < size_c*size_r; ++i)
+    {
+        storage[i] = obj.storage[i];
+        LU[i] = obj.LU[i];
+    }
+}
+
+template <class T>matrix::matrix operator * (matrix const &obj)
+{
+    T element;
+    if (size_c != obj.size_r)
+    {
+        printf("invalid matrix multiplication \n");
+        exit(8);
+    }
+    matrix return_val(size_r, obj.size_c)
+    for (int r = 0; r < size_r; ++r)
+    {
+        for (int c = 0; c < obj.size_c; ++c)
+        {
+            element = 0;
+            for (int s = 0; s < size_c; ++s)
+            {
+                element += get_element(r, s)*obj.get_element(s, c);
+            }
+            return_val.set_element(r, c) = element;
+        }
+    }
+    return return_val;
+}
+
 void template<class T>matrix::set_element(int r, int c, T val);
 {
     storage[r + r_size*c] = val;
@@ -31,7 +69,7 @@ void template<class T>matrix::set_element(int r, int c, T val);
 
 void template<class T>matrix::calc_LU();
 {
-    //LU decomposition basically copied from numerical recipies 3rd edition
+    //LU decomposition basically copied from numerical recipies 3rd edition, as a result I can't really comment on it
     const double TINY = 1.0e-40;
     int r, rmax, c, k;
     double BIG, temp;
