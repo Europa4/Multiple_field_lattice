@@ -65,28 +65,6 @@ int main(int argc, char **argv)
     sys.simulate(pow(10, 3), pow(10, 5));
   }
   */
-
-  matrix<double> A(2,2), B(2,2); //C(2,2);
-  
-  A.set_element(0,0, 0.);
-  A.set_element(0,1, 1.);
-  A.set_element(1,0, 2.);
-  A.set_element(1,1, 3.);
-  
-  B.set_element(0,0, 4.);
-  B.set_element(0,1, 5.);
-  B.set_element(1,0, 6.);
-  B.set_element(1,1, 7.);
-  
-  matrix<double> C = B*A;
-  for (int i = 0; i < 2; ++i)
-  {
-    for (int k = 0; k < 2; ++k)
-    {
-      printf("C[%i][%i] = %f \n", i, k, C.get_element(i, k));
-      //std::cout << C.get_element(i, k) << endl;
-    }
-  }
   
   MPI_Finalize(); //closing the MPI enviroment
   return 0;

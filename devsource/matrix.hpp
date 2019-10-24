@@ -8,7 +8,8 @@ template <class T> class matrix
     private:
     int size_r, size_c;
     double d;
-    bool square;
+    std::vector<int> index;
+    bool square, LUcheck, det_check;
     T* storage;
     T* LU;
 
@@ -17,6 +18,7 @@ template <class T> class matrix
     public:
     void set_element(int r, int c, T val);
     T get_element(int r, int c) const {return storage[r + size_r*c];}
+    void solve(T x[], T b[]);
     matrix<T> operator * (matrix const &obj);
 
     //constructors and destructors
@@ -34,11 +36,14 @@ template <class T>matrix<T>::matrix(int r, int c)
     if (size_r == size_c)
     {
         square = true;
+        index.resize(size_r, 0);
     }
     else
     {
         square = false;
     }
+    LUcheck = false;
+    det_check = false;
     d = 1.;
     
 }
@@ -52,7 +57,10 @@ template <class T>matrix<T>::~matrix()
 template <class T>matrix<T>::matrix(const matrix& obj) : size_r(obj.size_r),
 size_c(obj.size_c),
 d(obj.d),
+index(index),
 square(obj.square),
+LUcheck(obj.LUcheck),
+det_check(obj.det_check),
 storage(new T[obj.size_c*obj.size_r]),
 LU(new T[obj.size_c*obj.size_r])
 {
@@ -91,11 +99,18 @@ template <class T>matrix<T>matrix<T>::operator * (matrix const &obj)
 template<class T> void matrix<T>::set_element(int r, int c, T val)
 {
     storage[r + size_r*c] = val;
+    LUcheck = false;
+    det_check = false;
 }
 
 template<class T> void matrix<T>::calc_LU()
 {
     //LU decomposition basically copied from numerical recipies 3rd edition, as a result I can't really comment on it
+    if (!square)
+    {
+        printf("Cannot LU decompose non square matrix \n");
+        exit(9);
+    }
     const double TINY = 1.0e-40;
     int r, rmax, c, k;
     double BIG, temp;
@@ -156,10 +171,57 @@ template<class T> void matrix<T>::calc_LU()
 
         for (r = k + 1; r < size_r; ++r)
         {
-            //continue from here page 53
+            temp = LU[r + size_r*k] /= LU[k + size_r*k];
+            for (c = k + 1; c < size_r; ++c)
+            {
+                LU[r + c*size_r] -= temp*LU[k + size_r*c];
+            }
         }
     }
+    LUcheck = true;
 }
 
+template<class T> void matrix<T>::solve(T x[], T b[])
+{
+    //solves a system of equations of the form matrix * x = b for known b and matrix.
+    //again pretty much copied from page 53 of numerical recipies 3rd ed.
+    if (LUcheck == false)
+    {
+        calc_LU();
+    }
+    int i, ii = 0, ip, k;
+    T sum;
+    for(i = 0; i < size_r; ++i)
+    {
+        x[i] = b[i];
+    }
+    for (i = 0; i < size_r; ++i)
+    {
+        ip = index[i];
+        sum = x[ip];
+        x[ip] = x[i];
+        if (ii != 0)
+        {
+            for(k = ii - 1; k < i; ++k)
+            {
+                sum -= LU[i + size_r*k]*x[k];
+            }
+        }
+        else if(sum != 0.0)
+        {
+            ii = i + 1;
+        }
+        x[i] = sum;
+    }
+    for (i = size_r - 1; i >= 0; --i)
+    {
+        sum = x[i];
+        for (k = i + 1; k < size_r; ++k)
+        {
+            sum -= LU[i + size_r*k]*x[k];
+        }
+        x[i] = sum/LU[i + i*size_r];
+    }
+}
 
 #endif //MATRIX_H_INCLUDED
