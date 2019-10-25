@@ -6,6 +6,7 @@
 
 #include "Prot.h"
 using namespace std;
+#include <limits>
 /*
 class tester_class
 {
