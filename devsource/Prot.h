@@ -18,12 +18,14 @@
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_eigen.h>
 #include <boost/filesystem.hpp>
+#include <boost/multiprecision/complex128.hpp>
 #include <stdio.h>
 #include <string>
 #include <time.h>
 //#include <random>
 
 #include "thimble_lattice.h"
+#include "matrix.hpp"
 
 using namespace std;
 typedef complex<double> dcomp;

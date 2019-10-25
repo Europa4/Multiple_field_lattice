@@ -1,4 +1,4 @@
-LIBS	= -I/usr/local/include/ -L/usr/lib64 -lgsl -lgslcblas -lboost_filesystem -lboost_system -lm -std=c++0x
+LIBS	= -I/usr/local/include/ -L/usr/lib64 -lgsl -lgslcblas -lboost_filesystem -lboost_system -lm -std=c++0x -O3
 CCOMP 	= mpic++
 LINKER 	= -o 
 CFLAGS 	= -c

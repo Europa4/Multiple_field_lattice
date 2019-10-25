@@ -55,12 +55,38 @@ int main(int argc, char **argv)
   phi.simulate(pow(10,3), pow(10,5), 1, 50);
   */
 
-  thimble_system sys(1, 4, 0.01, 5);
-  sys.add_scalar_field(1.0);
-  //sys.add_interaction(1.0, 4);
-  //printf("the action = %f%+f \n", std::real(sys.calc_S()), std::imag(sys.calc_S()));
-  //sys.test();
-  printf("long double max value: %e \n", numeric_limits<long double>::max());
+ /*
+  for(int i = 0; i < 50; ++i)
+  {
+    seed = dist(rd);
+    thimble_system sys(1, 10, 1.5, seed);
+    sys.add_scalar_field(1.0);
+    sys.set_path("Data/");
+    sys.set_name("phi_" + std::to_string(i));
+    sys.simulate(pow(10, 3), pow(10, 5));
+  }
+  */
+
+  matrix<double> A(2,2), B(2,2); //C(2,2);
+  
+  A.set_element(0,0, 0.);
+  A.set_element(0,1, 1.);
+  A.set_element(1,0, 2.);
+  A.set_element(1,1, 3.);
+  
+  B.set_element(0,0, 4.);
+  B.set_element(0,1, 5.);
+  B.set_element(1,0, 6.);
+  B.set_element(1,1, 7.);
+  
+  double b[2], x[2];
+  b[0] = 2.;
+  b[1] = 3.;
+
+  A.solve(x, b);
+  printf("x[0] = %f \n", x[0]);
+  printf("x[1] = %f \n", x[1]);
+  
   MPI_Finalize(); //closing the MPI enviroment
   return 0;
 }
