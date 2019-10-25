@@ -12,14 +12,21 @@ template <class T> class matrix
     bool square, LUcheck, det_check;
     T* storage;
     T* LU;
+    T det;
 
     void calc_LU();
+    void calc_det();
 
     public:
     void set_element(int r, int c, T val);
     T get_element(int r, int c) const {return storage[r + size_r*c];}
     void solve(T x[], T b[]);
+    T get_det();
+    matrix conj();
+
+    //operators
     matrix<T> operator * (matrix const &obj);
+    matrix<T> operator = (matrix const &obj);
 
     //constructors and destructors
     matrix(int size_r, int size_c);
@@ -37,6 +44,10 @@ template <class T>matrix<T>::matrix(int r, int c)
     {
         square = true;
         index.resize(size_r, 0);
+        for(int i = 0; i < size_r*size_r; ++i)
+        {
+            LU[i] = 0;
+        }
     }
     else
     {
@@ -57,12 +68,13 @@ template <class T>matrix<T>::~matrix()
 template <class T>matrix<T>::matrix(const matrix& obj) : size_r(obj.size_r),
 size_c(obj.size_c),
 d(obj.d),
-index(index),
+index(obj.index),
 square(obj.square),
 LUcheck(obj.LUcheck),
 det_check(obj.det_check),
 storage(new T[obj.size_c*obj.size_r]),
-LU(new T[obj.size_c*obj.size_r])
+LU(new T[obj.size_c*obj.size_r]),
+det(obj.det)
 {
     for(int i = 0; i < size_c*size_r; ++i)
     {
@@ -74,7 +86,7 @@ LU(new T[obj.size_c*obj.size_r])
 template <class T>matrix<T>matrix<T>::operator * (matrix const &obj)
 {
     T element;
-    matrix return_val(size_r, obj.size_c);
+    matrix<T> return_val(size_r, obj.size_c);
     
     if (size_c != obj.size_r)
     {
@@ -96,6 +108,36 @@ template <class T>matrix<T>matrix<T>::operator * (matrix const &obj)
     return return_val;
 }
 
+template <class T> matrix<T> matrix<T>::operator = (matrix const &obj)
+{
+    size_r = obj.size_r;
+    size_c = obj.size_c;
+    index = obj.index;
+    square = obj.square;
+    LUcheck = obj.LUcheck;
+    det_check = obj.det_check;
+    det = obj.det;
+    for (int i = 0; i < size_r*size_c; ++i)
+    {
+        LU[i] = obj.LU[i];
+        storage[i] = obj.storage[i];
+    }
+    return *this;
+}
+
+template<class T> matrix<T> matrix<T>::conj()
+{
+    matrix<T> ret(size_c, size_r);
+    for (int r = 0; r < size_r; ++r)
+    {
+        for (int c = 0; c < size_c; ++c)
+        {
+            ret.set_element(c, r, std::conj(get_element(r, c)));
+        }
+    }
+    return ret;
+}
+
 template<class T> void matrix<T>::set_element(int r, int c, T val)
 {
     storage[r + size_r*c] = val;
@@ -113,9 +155,11 @@ template<class T> void matrix<T>::calc_LU()
     }
     const double TINY = 1.0e-40;
     int r, rmax, c, k;
-    double BIG, temp;
-    std::vector<double> vv(size_r);
-    std::vector<int> index(size_r);
+    T BIG, temp;
+    std::vector<double> vv(size_r, 0);
+    std::vector<int> index(size_r, 0);
+    
+    d = 1.;
 
     for(r = 0; r < pow(size_r, 2); ++r)
     {
@@ -125,9 +169,9 @@ template<class T> void matrix<T>::calc_LU()
     for (r = 0; r < size_r; ++r)
     {
         BIG = 0.;
-        for(c = 0; c <size_r; ++c)
+        for(c = 0; c < size_r; ++c)
         {
-            if((temp = std::abs(LU[r + size_r*c])) > BIG)
+            if(std::abs(temp = LU[r + size_r*c]) > std::abs(BIG))
             {
                 BIG = temp;
             }
@@ -137,7 +181,7 @@ template<class T> void matrix<T>::calc_LU()
             printf("Singular matrix \n");
             exit(7);
         }
-        vv[r] = 1./BIG;
+        vv[r] = 1./std::abs(BIG);
     }
 
     for(k = 0; k < size_r; ++k)
@@ -146,7 +190,7 @@ template<class T> void matrix<T>::calc_LU()
         for (r = k; r < size_r; ++r)
         {
             temp = vv[r]*std::abs(LU[r + size_r*k]);
-            if (temp > BIG)
+            if (std::abs(temp) > std::abs(BIG))
             {
                 BIG = temp;
                 rmax = r;
@@ -164,7 +208,7 @@ template<class T> void matrix<T>::calc_LU()
             vv[rmax] = vv[k];
         }
         index[k] = rmax;
-        if(LU[k + k*size_r])
+        if(std::abs(LU[k + k*size_r]) == 0)
         {
             LU[k + k*size_r] = TINY;
         }
@@ -222,6 +266,29 @@ template<class T> void matrix<T>::solve(T x[], T b[])
         }
         x[i] = sum/LU[i + i*size_r];
     }
+}
+
+template<class T> void matrix<T>::calc_det()
+{
+    if(LUcheck == false)
+    {
+        calc_LU();
+    }
+    det = d;
+    for (int i = 0; i < size_r; ++i)
+    {
+        det *= LU[i + i*size_r];
+    }
+    det_check = true;
+}
+
+template<class T> T matrix<T>::get_det()
+{
+    if(!det_check)
+    {
+        calc_det();
+    }
+    return det;
 }
 
 #endif //MATRIX_H_INCLUDED

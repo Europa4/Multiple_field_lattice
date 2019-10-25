@@ -85,6 +85,19 @@ int main(int argc, char **argv)
   A.solve(x, b);
   printf("x[0] = %f \n", x[0]);
   printf("x[1] = %f \n", x[1]);
+
+  printf("Det A = %f \n", A.get_det());
+
+  matrix<dcomp> C(2,2);
+  C.set_element(0, 0, j);
+  C.set_element(0, 1, 2. + 3.*j);
+  C.set_element(1, 0, 4. + 5.*j);
+  C.set_element(1, 1, 6. + 7.*j);
+
+  matrix<dcomp> D(3,3);
+  D = C;
+
+  printf("Det D = %f%+fi \n", std::real(D.get_det()), std::imag(D.get_det()));
   
   MPI_Finalize(); //closing the MPI enviroment
   return 0;
