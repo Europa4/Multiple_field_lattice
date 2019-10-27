@@ -4,3 +4,4 @@ Error codes:
 7   Matrix is singular, LU decomposition impossible
 8   Matrix multiplication impossible due to dimentions
 9   Matrix not square, LU decomposition impossible
+10  Matrix addition invalid due to incompatable dimentions

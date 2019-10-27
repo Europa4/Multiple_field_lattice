@@ -321,8 +321,8 @@ void scalar_field::initialise()
     field_1[i] = field_1[i]/V;
 
     //manual force to check values
-    //field_0[i] = 0.8;
-    //field_1[i] = 1.0;
+    field_0[i] = 0.8;
+    field_1[i] = 1.0;
   }
   
   for(int k = 0; k < Nx; ++k)
@@ -1091,16 +1091,11 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
 
 void thimble_system::test()
 {
-  simulate(0, 100);
-  //printf("number of ode steps = %i \n", number_of_timesteps);
-  /*
-  dcomp* jac = new dcomp[NjacSquared];
-  dcomp det;
+  add_scalar_field(1.);
   scalars[0].initialise();
-  for(int i = 0; i < 100; ++i)
+  for (int i = 0; i < Ntot; ++i)
   {
-    det = calc_jacobian(jac);
+    scalars[0].fields[0][i] = i;
   }
-  delete[] jac;
-  */
+  dcomp test_S = calc_S();
 }
