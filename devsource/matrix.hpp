@@ -125,6 +125,24 @@ template <class T> matrix<T> matrix<T>::operator = (matrix const &obj)
     return *this;
 }
 
+template <class T> matrix<T> matrix<T>::operator + (matrix const &obj)
+{
+    if (!(size_r == obj.size_r && size_c == obj.size_c))
+    {
+        printf("Error in matrix class, invalid matrix addition \n");
+        exit(10);
+    }
+    matrix<T> return_val(size_r, size_c);
+    for (int r = 0; r < size_r; ++r)
+    {
+        for (int c = 0; c < size_c; ++c)
+        {
+            return_val.set_element(r, c, get_element(r, c) + obj.get_element(r, c));
+        }
+    }
+    return return_val;
+}
+
 template<class T> matrix<T> matrix<T>::conj()
 {
     matrix<T> ret(size_c, size_r);
