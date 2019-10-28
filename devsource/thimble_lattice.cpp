@@ -691,6 +691,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   {
     for (int k = 0; k < Ntot; ++k)
     {
+      //resetting the flowed field to the base field. At this point we're at tau = 0 so the flowed field and base field should be identical
       scalars[i].fields[proposal_or - 2][k] = scalars[i].fields[proposal_or][k];
       working_scalar[i*Ntot + k] = scalars[i].fields[proposal_or][k];
     }
