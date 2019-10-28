@@ -27,6 +27,7 @@ template <class T> class matrix
     //operators
     matrix<T> operator * (matrix const &obj);
     matrix<T> operator = (matrix const &obj);
+    matrix<T> operator + (matrix const &obj);
 
     //constructors and destructors
     matrix(int size_r, int size_c);

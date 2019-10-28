@@ -55,8 +55,8 @@ int main(int argc, char **argv)
   phi.simulate(pow(10,3), pow(10,5), 1, 50);
   */
 
- /*
-  for(int i = 0; i < 50; ++i)
+ 
+  for(int i = 0; i < 1; ++i)
   {
     seed = dist(rd);
     thimble_system sys(1, 10, 1.5, seed);
@@ -65,7 +65,6 @@ int main(int argc, char **argv)
     sys.set_name("phi_" + std::to_string(i));
     sys.simulate(pow(10, 3), pow(10, 5));
   }
-  */
   
   MPI_Finalize(); //closing the MPI enviroment
   return 0;

@@ -395,13 +395,31 @@ void scalar_field::initialise()
     C[1][(i + 1)*Nrpath - 1] *= -1.;
     C[2][i*Nrpath] *= -1.;
   }
+
+  for(int i = 0; i < Nx; ++i)
+  {
+    field_2[i] = fields[2][i*Nrpath + 1];
+  }
 }
 
 dcomp scalar_field::free_action(int site, int field_type)
 {
   //Standard P^2 - m^2 action
-  dcomp S = -1.*(C[1][site]/2.)*pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2) 
-    - pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2) - squareMass*pow(fields[field_type][site], 2)));
+  dcomp S = 0;
+  int n = calc_n(site);
+  if(n != Nrpath - 1)
+  {
+    S = -1.*(C[1][site]/2.)*pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2)
+      - pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2)) + squareMass*pow(fields[field_type][site], 2)/2.)
+      + C[4][site]*fields[field_type][site];
+  }
+  else
+  {
+    //This is the anti periodic boundary term
+    S = (C[1][site]/2.)*pow(fields[field_type][positive_time_site[site]] + fields[field_type][site], 2)
+      - pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2)) + squareMass*pow(fields[field_type][site], 2)/2.)
+      + C[4][site]*fields[field_type][site];
+  }
   return S;
 }
 
@@ -1099,4 +1117,5 @@ void thimble_system::test()
     scalars[0].fields[0][i] = i;
   }
   dcomp test_S = calc_S();
+  printf("test_S = %f%+fi \n", std::real(test_S), std::imag(test_S));
 }
