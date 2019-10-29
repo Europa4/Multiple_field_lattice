@@ -56,15 +56,18 @@ int main(int argc, char **argv)
   */
 
  
-  for(int i = 0; i < 1; ++i)
+  for(int i = 4; i < 50; ++i)
   {
     seed = dist(rd);
     thimble_system sys(1, 10, 1.5, seed);
     sys.add_scalar_field(1.0);
     sys.set_path("Data/");
-    sys.set_name("phi_" + std::to_string(i));
+    sys.set_name("phi_" + std::to_string(i*world_size + world_rank));
     sys.simulate(pow(10, 3), pow(10, 5));
+    printf("simulation %i completed \n", i*world_size + world_rank);
   }
+  
+ 
   
   MPI_Finalize(); //closing the MPI enviroment
   return 0;

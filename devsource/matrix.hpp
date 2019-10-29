@@ -23,6 +23,8 @@ template <class T> class matrix
     void solve(T x[], T b[]);
     T get_det();
     matrix conj();
+    matrix forward_vector_multiplication(T vec[]);
+    matrix backward_vector_multiplication(T vec[]);
 
     //operators
     matrix<T> operator * (matrix const &obj);
@@ -210,7 +212,7 @@ template<class T> void matrix<T>::calc_LU()
         {
             temp = vv[r]*std::abs(LU[r + size_r*k]);
             if (std::abs(temp) > std::abs(BIG))
-            {
+            { 
                 BIG = temp;
                 rmax = r;
             }
@@ -308,6 +310,38 @@ template<class T> T matrix<T>::get_det()
         calc_det();
     }
     return det;
+}
+
+template<class T> matrix<T> matrix<T>::forward_vector_multiplication(T vec[])
+{
+    matrix<T> return_val(1, size_r);
+    T element;
+    for (int i = 0; i < size_c; ++i)
+    {
+        element = 0;
+        for (int k = 0; k < size_r; ++k)
+        {
+            element += get_element(i, k)*vec[k];
+        }
+        return_val.set_element(0, i, element);
+    }
+    return return_val;
+}
+
+template<class T> matrix<T> matrix<T>::backward_vector_multiplication(T vec[])
+{
+    matrix<T> return_val(size_r, 1);
+    T element;
+    for (int i = 0; i < size_c; ++i)
+    {
+        element = 0;
+        for (int k = 0; k < size_r; ++k)
+        {
+            element += vec[k]*get_element(k, i);
+        }
+        return_val.set_element(0, i, element);
+    }
+    return return_val;
 }
 
 #endif //MATRIX_H_INCLUDED
