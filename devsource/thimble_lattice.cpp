@@ -677,7 +677,7 @@ void thimble_system::sync_ajustment(dcomp ajustment[])
   }
 }
 
-dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
+matrix thimble_system::calc_jacobian(bool proposal)
 {
   //function calculates the Jacobian and it's determinant from either the proposed or orignal fields
   dcomp* working_scalar = new dcomp[Njac];
@@ -884,7 +884,6 @@ int thimble_system::update()
   dcomp proposed_action, proposed_detJ;
   double log_proposal;
   dcomp* eta = new dcomp[Njac];
-  dcomp* Delta = new dcomp[Njac];
   dcomp* proposed_J = new dcomp[NjacSquared];
   dcomp* proposed_J_conj = new dcomp[NjacSquared];
   dcomp* proposed_delta_J = new dcomp[Njac];
@@ -900,23 +899,14 @@ int thimble_system::update()
     eta[i] = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
   }
 
-  for(int c = 0; c < Njac; ++c)
-  {
-    Delta[c] = 0.;
-    for(int r = 0; r < Njac; ++r)
-    {
-      //matrix multiplication using the inverse of J to transport the vector eta from the complex manifold to the real
-      //this *is* right, the elements should be swapped like this. Don't "debug" that out while tired.
-      Delta[c] += std::real(invJ[c + Njac*r]*eta[r]);
-    }
-  }
+  matrix Delta = J.solve(eta);
 
   //creating new basefield condtions
   for(int i = 0; i < scalars.size(); ++i)
   {
     for(int k = 0; k < Ntot; ++k)
     {
-      scalars[i].fields[3][k] = scalars[i].fields[2][k] + Delta[k + i*Ntot];
+      scalars[i].fields[3][k] = scalars[i].fields[2][k] + Delta.get_element(k + i*Ntot, 0);
     }
   }
 
@@ -983,7 +973,6 @@ int thimble_system::update()
     output = 1;
   }
   delete[] eta;
-  delete[] Delta;
   delete[] proposed_J;
   delete[] proposed_J_conj;
   delete[] proposed_delta_J;

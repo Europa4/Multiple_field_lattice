@@ -21,6 +21,7 @@ template <class T> class matrix
     void set_element(int r, int c, T val);
     T get_element(int r, int c) const {return storage[r + size_r*c];}
     void solve(T x[], T b[]);
+    matrix solve(T b[]);
     T get_det();
     matrix conj();
     matrix forward_vector_multiplication(T vec[]);
@@ -287,6 +288,19 @@ template<class T> void matrix<T>::solve(T x[], T b[])
         }
         x[i] = sum/LU[i + i*size_r];
     }
+}
+
+template<class T> matrix<T> matrix<T>::solve(T b[])
+{
+    //This is just a wrapper for the other function, but allows it to be returned as a matrix. Can be useful, as in our main project.
+    T x[size_c];
+    matrix<T> return_val(size_r, 1);
+    solve(x, b);
+    for (int i = 0; i < size_r; ++i)
+    {
+        return_val.set_element(i, 0, x[i]);
+    }
+    return return_val;
 }
 
 template<class T> void matrix<T>::calc_det()
