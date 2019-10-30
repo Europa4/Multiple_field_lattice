@@ -285,17 +285,18 @@ void scalar_field::initialise()
     //this is called *after* the constructor, because we need to specify the mass
   double a[Nx], b[Nx], c[Nx], d[Nx];
   double p, omega_p, omega_tilde, Omega_p, V;
+
   
   for (int i = 0; i < Nx; ++i)
   {
-      a[i] = gsl_ran_gaussian(my_rngPointer, 1); //Yeah naming a variable a, b, c, d isn't helpful, but it's what we call them in the maths. Besides, they're local to this function.
-      b[i] = gsl_ran_gaussian(my_rngPointer, 1);
-      c[i] = gsl_ran_gaussian(my_rngPointer, 1);
-      d[i] = gsl_ran_gaussian(my_rngPointer, 1);
-      field_0[i] = 0;
-      field_1[i] = 0;
+    a[i] = gsl_ran_gaussian(my_rngPointer, 1); //Yeah naming a variable a, b, c, d isn't helpful, but it's what we call them in the maths. Besides, they're local to this function.
+    b[i] = gsl_ran_gaussian(my_rngPointer, 1);
+    c[i] = gsl_ran_gaussian(my_rngPointer, 1);
+    d[i] = gsl_ran_gaussian(my_rngPointer, 1);
+    field_0[i] = 0;
+    field_1[i] = 0;
   } //random number arrays for Mou's initial conditions, and the initial states of the phi field
-  
+
   V = Nx*dx;
 
   for (int i = 0; i < Nx; ++i)
@@ -324,7 +325,7 @@ void scalar_field::initialise()
     field_0[i] = 0.8;
     field_1[i] = 1.0;
   }
-  
+
   for(int k = 0; k < Nx; ++k)
   {
       fields[2][0 + Nrpath*k] = field_1[k];
@@ -512,7 +513,8 @@ Npath(2*Nt),
 Nrpath(Npath - 4), 
 Ntot(Nrpath*Nx),
 rng_seed(seed),
-jac_defined(false),
+J(0,0),
+J_conj(0,0),
 rel_path(""),
 file_name("0"),
 j(0,1),
@@ -537,14 +539,7 @@ delta(0.1)
 thimble_system::~thimble_system()
 {
   gsl_rng_free(my_rngPointer);
-  if (jac_defined)
-  {
-    delete[] J;
-    delete[] invJ;
-    delete[] conj_J;
-  }
 }
-
 void thimble_system::add_scalar_field()
 {
   scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
@@ -677,7 +672,7 @@ void thimble_system::sync_ajustment(dcomp ajustment[])
   }
 }
 
-matrix thimble_system::calc_jacobian(bool proposal)
+matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
 {
   //function calculates the Jacobian and it's determinant from either the proposed or orignal fields
   dcomp* working_scalar = new dcomp[Njac];
@@ -694,10 +689,8 @@ matrix thimble_system::calc_jacobian(bool proposal)
   dcomp* k4_jac = new dcomp[NjacSquared];
   int ajustment = 4;
 
-  int s = 1;
-  gsl_permutation* p = gsl_permutation_alloc(Njac);
-  gsl_matrix_complex* mJ = gsl_matrix_complex_alloc(Njac, Njac);
-  gsl_complex det_gsl;
+  matrix<dcomp> Jac(Njac, Njac);
+  dcomp jac_element;
 
   //identifying if it's the proposal or exising fields we wish to flow
   int proposal_or = 2;
@@ -722,11 +715,11 @@ matrix thimble_system::calc_jacobian(bool proposal)
     {
       if (r == c)
       {
-        Jac[r + Njac*c] = 1.;
+        Jac.set_element(r, c, 1);
       }
       else
       {
-        Jac[r + Njac*c] = 0.;
+        Jac.set_element(r, c, 0);
       }
     }
   }
@@ -742,9 +735,9 @@ matrix thimble_system::calc_jacobian(bool proposal)
         k1_jac[r + Njac*c] = 0.;
         for (int s = 0; s < Njac; ++s)
         {
-          k1_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, proposal_or - 2)*Jac[s + Njac*c]);
+          k1_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, proposal_or - 2)*Jac.get_element(s, c));
         }
-        ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k1_jac[r + Njac*c]/2.;
+        ajustment_jac[r + Njac*c] = Jac.get_element(r, c) + k1_jac[r + Njac*c]/2.;
       }
     }
     sync_ajustment(ajustment_scalar);
@@ -769,7 +762,7 @@ matrix thimble_system::calc_jacobian(bool proposal)
       ajustment_scalar[r] = working_scalar[r] + k2_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
       {
-        ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k2_jac[r + Njac*c]/2.;
+        ajustment_jac[r + Njac*c] = Jac.get_element(r,c) + k2_jac[r + Njac*c]/2.;
       }
     }
     sync_ajustment(ajustment_scalar);
@@ -792,7 +785,7 @@ matrix thimble_system::calc_jacobian(bool proposal)
       ajustment_scalar[r] = working_scalar[r] + k3_scalar[r];
       for (int c = 0; c < Njac; ++c)
       {
-        ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k3_jac[r + Njac*c];
+        ajustment_jac[r + Njac*c] = Jac.get_element(r, c) + k3_jac[r + Njac*c];
       }
     }
     sync_ajustment(ajustment_scalar);
@@ -814,7 +807,9 @@ matrix thimble_system::calc_jacobian(bool proposal)
       working_scalar[r] += (k1_scalar[r] + 2.*k2_scalar[r] + 2.*k3_scalar[r] + k4_scalar[r])/6.;
       for (int c = 0; c < Njac; ++c)
       {
-        Jac[r + Njac*c] += (k1_jac[r + Njac*c] + 2.*k2_jac[r + Njac*c] + 2.*k3_jac[r + Njac*c] + k4_jac[r + Njac*c])/6.;
+        jac_element = Jac.get_element(r, c);
+        jac_element += (k1_jac[r + Njac*c] + 2.*k2_jac[r + Njac*c] + 2.*k3_jac[r + Njac*c] + k4_jac[r + Njac*c])/6.;
+        Jac.set_element(r, c, jac_element);
       }
     }
     //returning the flowed fields to the scalar fields object
@@ -826,16 +821,6 @@ matrix thimble_system::calc_jacobian(bool proposal)
       }
     }
   }
-  //casting from our complex array to a GSL matrix
-  for(int r = 0; r < Njac; ++r)
-  {
-    for(int c = 0; c < Njac; ++c)
-    {
-      gsl_matrix_complex_set(mJ, r, c, gsl_complex_rect(std::real(Jac[r + c*Njac]), std::imag(Jac [r + c*Njac])));
-    }
-  }
-  gsl_linalg_complex_LU_decomp(mJ, p, &s);
-  det_gsl = gsl_linalg_complex_LU_det(mJ, s); //this actually calculates the determinant
   
   delete[] working_scalar;
   delete[] ajustment_scalar;
@@ -848,10 +833,8 @@ matrix thimble_system::calc_jacobian(bool proposal)
   delete[] k2_jac;
   delete[] k3_jac;
   delete[] k4_jac;
-  gsl_permutation_free(p);
-  gsl_matrix_complex_free(mJ);
 
-  return GSL_REAL(det_gsl) + j*GSL_IMAG(det_gsl);
+  return Jac;
 }
 
 dcomp thimble_system::calc_S(int field_type)
@@ -884,12 +867,6 @@ int thimble_system::update()
   dcomp proposed_action, proposed_detJ;
   double log_proposal;
   dcomp* eta = new dcomp[Njac];
-  dcomp* proposed_J = new dcomp[NjacSquared];
-  dcomp* proposed_J_conj = new dcomp[NjacSquared];
-  dcomp* proposed_delta_J = new dcomp[Njac];
-  dcomp* delta_J = new dcomp[Njac];
-  dcomp* proposed_J_delta = new dcomp[Njac];
-  dcomp* J_delta = new dcomp[Njac];
   double matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
   int output = 0; //this is the return value
 
@@ -899,7 +876,12 @@ int thimble_system::update()
     eta[i] = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
   }
 
-  matrix Delta = J.solve(eta);
+  matrix<dcomp> Delta = J.solve(eta);
+
+  for(int i = 0; i < Njac; ++i)
+  {
+    Delta.set_element(i, 0, std::real(Delta.get_element(i, 0)));
+  }
 
   //creating new basefield condtions
   for(int i = 0; i < scalars.size(); ++i)
@@ -911,54 +893,24 @@ int thimble_system::update()
   }
 
   //calculating the Jacobian, it's determinant, conjugate, and the action of the proposed field state
-  proposed_detJ = calc_jacobian(proposed_J, proposal);
+  matrix<dcomp> proposed_J = calc_jacobian(proposal);
+  matrix<dcomp> proposed_J_conj = proposed_J.conj();
   proposed_action = calc_S(1);
-  log_proposal = std::log(std::abs(proposed_detJ));
-  for (int r = 0; r < Njac; ++r)
-  {
-    for (int c = 0; c < Njac; ++c)
-    {
-      proposed_J_conj[r + Njac*c] = std::conj(proposed_J[c + Njac*r]);
-    }
-  }
+  log_proposal = std::log(std::abs(proposed_J.get_det()));
 
   //matrix multiplication required to calculate the accpetance exponenet
-  for(int r = 0; r < Njac; ++r)
-  {
-    proposed_delta_J[r] = 0;
-    delta_J[r] = 0;
-    proposed_J_delta[r] = 0;
-    J_delta[r] = 0;
-    for (int c = 0; c < Njac; ++c)
-    {
-      proposed_delta_J[r] += Delta[c]*proposed_J[c + r*Njac];
-      delta_J[r] += Delta[c]*J[c + r*Njac];
-      proposed_J_delta[r] += Delta[c]*proposed_J_conj[r + Njac*c];
-      J_delta[r] += Delta[c]*conj_J[r + Njac*c];
-    }
-  }
+  matrix<dcomp> Delta_transpose = Delta.transpose();
 
-  //calculating the matrix cross terms
-  matrix_exponenet = 0;
-  proposed_matrix_exponenet = 0;
-  for (int r = 0; r < Njac; ++r)
-  {
-    matrix_exponenet += std::real(delta_J[r]*J_delta[r]);
-    proposed_matrix_exponenet += std::real(proposed_delta_J[r]*proposed_J_delta[r]);
-  }
+  matrix_exponenet = std::real((Delta*J*J_conj*Delta_transpose).get_element(0, 0));
   //exponenet for the MC test
-  exponenet = std::real(S - proposed_action) + 2.*log_proposal - 2.*std::log(std::real(detJ)) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
+  exponenet = std::real(S - proposed_action) + 2.*log_proposal - 2.*std::log(std::real(J.get_det())) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
   check = gsl_rng_uniform(my_rngPointer);
   if (std::exp(exponenet) > check)
   {
     //proposal was accepted, transfering all the proposed parameters to the storage
-    detJ = proposed_detJ;
     S = proposed_action;
-    for (int i = 0; i < NjacSquared; ++i)
-    {
-      J[i] = proposed_J[i];
-      conj_J[i] = proposed_J_conj[i];
-    } 
+    J = proposed_J;
+    J_conj = proposed_J_conj;
     //transfering over all the scalar fields
     for (int i = 0; i < scalars.size(); ++i)
     {
@@ -968,51 +920,10 @@ int thimble_system::update()
         scalars[i].fields[2][k] = scalars[i].fields[3][k];
       }
     }
-    //inverting the new jacobian
-    invert_jacobian(J, invJ);
     output = 1;
   }
   delete[] eta;
-  delete[] proposed_J;
-  delete[] proposed_J_conj;
-  delete[] proposed_delta_J;
-  delete[] delta_J;
-  delete[] proposed_J_delta;
-  delete[] J_delta;
   return output;
-}
-
-void thimble_system::invert_jacobian(dcomp Jac[], dcomp invJac[])
-{
-  int s;
-  gsl_permutation* p = gsl_permutation_alloc(Njac);
-  gsl_matrix_complex* mJ = gsl_matrix_complex_alloc(Njac, Njac); //setting up GSL matricies
-  gsl_matrix_complex* invmJ = gsl_matrix_complex_alloc(Njac, Njac);
-
-  for (int r = 0; r < Njac; ++r)
-  {
-    for (int c = 0; c < Njac; ++c)
-    {
-      //assiginging to a GSL matrix structure
-      gsl_matrix_complex_set(mJ, r, c, gsl_complex_rect(std::real(J[r + Njac*c]), std::imag(J[r + Njac*c])));
-    }
-  }
-
-  gsl_linalg_complex_LU_decomp(mJ, p, &s); //splitting into triangle matrices
-  gsl_linalg_complex_LU_invert(mJ, p, invmJ); //inverting the new triangle matricies
-
-  for (int r = 0; r < Njac; ++r)
-  {
-    for (int c = 0; c < Njac; ++c)
-    {
-      //returning the GSL matrix to the linear representation
-      invJac[r + Njac*c] = GSL_REAL(gsl_matrix_complex_get(invmJ, r, c)) + j*GSL_IMAG(gsl_matrix_complex_get(invmJ, r, c));
-    }
-  }
-
-  gsl_permutation_free(p);
-  gsl_matrix_complex_free(mJ);
-  gsl_matrix_complex_free(invmJ); //freeing the GSL pointers
 }
 
 void thimble_system::simulate(int n_burn_in, int n_simulation)
@@ -1020,32 +931,18 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   Njac = scalars.size()*Ntot; //setting the size of the Jacobian "matricies"
   NjacSquared = pow(Njac, 2);
 
-  J = new dcomp[NjacSquared]; //setting up the arrays that hold the Jacobian matricies
-  invJ = new dcomp[NjacSquared];
-  conj_J = new dcomp[NjacSquared];
-  jac_defined = true; //this ensures the correct memory management happens
-
   dcomp* state_storage = new dcomp[(Njac + 2)*n_simulation]; //This stores the data between updates and will be saved to a file
   std::ofstream data_storage;
 
+  J = calc_jacobian();
+  J_conj = J.conj();
   //initialising the fields
   for (int i = 0; i < scalars.size(); ++i)
   {
     scalars[i].initialise();
   }
-
-  detJ = calc_jacobian(J);
-  //calculating the conjugate of the jacobian
-  for (int r = 0; r < Njac; ++r)
-  {
-    for (int c = 0; c < Njac; ++c)
-    {
-      conj_J[r + Njac*c] = std::conj(J[c + Njac*r]);
-    }
-  }
   S = calc_S(0);
-  invert_jacobian(J, invJ); //setup is now complete, the Jacobian, it's inverse, conjugate, and it's determinant have been calculated, and the scalars are primed.
-
+//setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
   for (int i = 0; i < n_burn_in; ++i)
   {
     update();
@@ -1063,7 +960,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
       }
     }
     state_storage[i*(Njac + 2) + scalars.size()*Ntot] = S;
-    state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = std::log(std::real(detJ)) +j*std::arg(detJ);
+    state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = std::log(std::real(J.get_det())) +j*std::arg(J.get_det());
   }
   acceptance_rate /= n_simulation;
 

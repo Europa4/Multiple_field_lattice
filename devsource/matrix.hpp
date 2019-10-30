@@ -24,6 +24,7 @@ template <class T> class matrix
     matrix solve(T b[]);
     T get_det();
     matrix conj();
+    matrix transpose();
     matrix forward_vector_multiplication(T vec[]);
     matrix backward_vector_multiplication(T vec[]);
 
@@ -121,6 +122,8 @@ template <class T> matrix<T> matrix<T>::operator = (matrix const &obj)
     LUcheck = obj.LUcheck;
     det_check = obj.det_check;
     det = obj.det;
+    LU = new T(size_r*size_c);
+    storage = new T(size_r*size_c);
     for (int i = 0; i < size_r*size_c; ++i)
     {
         LU[i] = obj.LU[i];
@@ -354,6 +357,19 @@ template<class T> matrix<T> matrix<T>::backward_vector_multiplication(T vec[])
             element += vec[k]*get_element(k, i);
         }
         return_val.set_element(0, i, element);
+    }
+    return return_val;
+}
+
+template<class T> matrix<T> matrix<T>::transpose()
+{
+    matrix<T> return_val(size_c, size_r);
+    for(int r = 0; r < size_r; ++r)
+    {
+        for (int c = 0; c < size_c; ++c)
+        {
+            return_val.set_element(c, r, get_element(r, c));
+        }
     }
     return return_val;
 }
