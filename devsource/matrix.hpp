@@ -2,6 +2,7 @@
 #define MATRIX_H_INCLUDED
 
 #include <complex>
+#include <vector>
 
 template <class T> class matrix
 {
@@ -22,6 +23,7 @@ template <class T> class matrix
     T get_element(int r, int c) const {return storage[r + size_r*c];}
     void solve(T x[], T b[]);
     matrix solve(T b[]);
+    void resize(int new_r, int new_c);
     T get_det();
     matrix conj();
     matrix transpose();
@@ -372,6 +374,45 @@ template<class T> matrix<T> matrix<T>::transpose()
         }
     }
     return return_val;
+}
+
+template<class T> void matrix<T>::resize(int new_r, int new_c)
+{
+    
+    if (new_r >= size_r && new_c >= size_c)
+    {
+        T* temp = new T[size_r*size_c];
+        for (int i = 0; i < size_r*size_c; ++i)
+        {
+            temp[i] = storage[i];
+        }
+    }
+
+    delete[] storage;
+    storage = new T[new_r*new_c];
+
+    if (new_r >= size_r && new_c >= size_c)
+    {
+        for(int r = 0; r < new_r; ++r)
+        {
+            for (int c = 0; c < new_c; ++c)
+            {
+                storage[r + new_r*c] = temp[r + size_r*c];
+            }
+        }
+        delete[] temp;
+    }
+
+    size_r = new_r;
+    size_c = new_c;
+
+    if(size_r == size_c)
+    {
+        square = true;
+    }
+
+    det_check = false;
+    LU_check = false;
 }
 
 #endif //MATRIX_H_INCLUDED
