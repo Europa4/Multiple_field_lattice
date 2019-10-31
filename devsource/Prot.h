@@ -28,7 +28,7 @@
 #include "matrix.hpp"
 
 using namespace std;
-typedef complex<double> dcomp;
+//typedef complex<double> dcomp;
 
 const int Nx = 1;
 const int Nt = 10;

@@ -4,24 +4,15 @@ LINKER 	= -o
 CFLAGS 	= -c
 
 program     = evolve_exec
-objects     = main.o initialise.o c_phi.o matrix_multiplication.o thimble_lattice.o
+objects     = main.o thimble_lattice.o
 
 $(program): $(objects)
 	mpic++ $(objects) -o $(program) $(LIBS)
 	
-main.o: main.cpp Prot.h
+main.o: main.cpp 
 	mpic++ -c main.cpp $(LIBS)
-	
-initialise.o: initialise.cpp Prot.h
-	mpic++ -c initialise.cpp $(LIBS)
-	
-c_phi.o: c_phi.cpp Prot.h
-	mpic++ -c c_phi.cpp $(LIBS)
-	
-matrix_multiplication.o: matrix_multiplication.cpp Prot.h
-	mpic++ -c matrix_multiplication.cpp $(LIBS)
 
-thimble_lattice.o: thimble_lattice.cpp thimble_lattice.h
+thimble_lattice.o: thimble_lattice.cpp thimble_lattice.h matrix.hpp
 	mpic++ -c thimble_lattice.cpp $(LIBS)
 
 clean:

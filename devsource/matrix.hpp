@@ -11,8 +11,8 @@ template <class T> class matrix
     double d;
     std::vector<int> index;
     bool square, LUcheck, det_check;
-    T* storage;
-    T* LU;
+    std::vector<T> storage;
+    std::vector<T> LU;
     T det;
 
     void calc_LU();
@@ -25,10 +25,11 @@ template <class T> class matrix
     matrix solve(T b[]);
     void resize(int new_r, int new_c);
     T get_det();
-    matrix conj();
+    matrix conjugate();
     matrix transpose();
     matrix forward_vector_multiplication(T vec[]);
     matrix backward_vector_multiplication(T vec[]);
+    void size_output();
 
     //operators
     matrix<T> operator * (matrix const &obj);
@@ -45,8 +46,8 @@ template <class T>matrix<T>::matrix(int r, int c)
 {   
     size_r = r;
     size_c = c;
-    storage = new T[size_r*size_c]; //original matrix
-    LU = new T[size_r*size_c]; //triangular matrix
+    storage.resize(r*c); //original matrix
+    LU.resize(r*c); //triangular matrix
     if (size_r == size_c)
     {
         square = true;
@@ -68,8 +69,7 @@ template <class T>matrix<T>::matrix(int r, int c)
 
 template <class T>matrix<T>::~matrix()
 {
-    delete[] storage;
-    delete[] LU;
+
 }
 
 template <class T>matrix<T>::matrix(const matrix& obj) : size_r(obj.size_r),
@@ -79,8 +79,8 @@ index(obj.index),
 square(obj.square),
 LUcheck(obj.LUcheck),
 det_check(obj.det_check),
-storage(new T[obj.size_c*obj.size_r]),
-LU(new T[obj.size_c*obj.size_r]),
+storage(obj.storage),
+LU(obj.LU),
 det(obj.det)
 {
     for(int i = 0; i < size_c*size_r; ++i)
@@ -124,13 +124,8 @@ template <class T> matrix<T> matrix<T>::operator = (matrix const &obj)
     LUcheck = obj.LUcheck;
     det_check = obj.det_check;
     det = obj.det;
-    LU = new T(size_r*size_c);
-    storage = new T(size_r*size_c);
-    for (int i = 0; i < size_r*size_c; ++i)
-    {
-        LU[i] = obj.LU[i];
-        storage[i] = obj.storage[i];
-    }
+    LU = obj.LU;
+    storage = obj.storage;
     return *this;
 }
 
@@ -152,14 +147,14 @@ template <class T> matrix<T> matrix<T>::operator + (matrix const &obj)
     return return_val;
 }
 
-template<class T> matrix<T> matrix<T>::conj()
+template<class T> matrix<T> matrix<T>::conjugate()
 {
     matrix<T> ret(size_c, size_r);
     for (int r = 0; r < size_r; ++r)
     {
         for (int c = 0; c < size_c; ++c)
         {
-            ret.set_element(c, r, std::conj(get_element(r, c)));
+            ret.set_element(c, r, conj(get_element(r, c)));
         }
     }
     return ret;
@@ -183,7 +178,7 @@ template<class T> void matrix<T>::calc_LU()
     const double TINY = 1.0e-40;
     int r, rmax, c, k;
     T BIG, temp;
-    std::vector<double> vv(size_r, 0);
+    std::vector<T> vv(size_r, 0);
     std::vector<int> index(size_r, 0);
     
     d = 1.;
@@ -198,7 +193,7 @@ template<class T> void matrix<T>::calc_LU()
         BIG = 0.;
         for(c = 0; c < size_r; ++c)
         {
-            if(std::abs(temp = LU[r + size_r*c]) > std::abs(BIG))
+            if(abs(temp = LU[r + size_r*c]) > abs(BIG))
             {
                 BIG = temp;
             }
@@ -208,7 +203,7 @@ template<class T> void matrix<T>::calc_LU()
             printf("Singular matrix \n");
             exit(7);
         }
-        vv[r] = 1./std::abs(BIG);
+        vv[r] = 1./abs(BIG);
     }
 
     for(k = 0; k < size_r; ++k)
@@ -216,8 +211,8 @@ template<class T> void matrix<T>::calc_LU()
         BIG = 0.;
         for (r = k; r < size_r; ++r)
         {
-            temp = vv[r]*std::abs(LU[r + size_r*k]);
-            if (std::abs(temp) > std::abs(BIG))
+            temp = vv[r]*abs(LU[r + size_r*k]);
+            if (abs(temp) > abs(BIG))
             { 
                 BIG = temp;
                 rmax = r;
@@ -235,7 +230,7 @@ template<class T> void matrix<T>::calc_LU()
             vv[rmax] = vv[k];
         }
         index[k] = rmax;
-        if(std::abs(LU[k + k*size_r]) == 0)
+        if(abs(LU[k + k*size_r]) == 0)
         {
             LU[k + k*size_r] = TINY;
         }
@@ -378,31 +373,8 @@ template<class T> matrix<T> matrix<T>::transpose()
 
 template<class T> void matrix<T>::resize(int new_r, int new_c)
 {
-    
-    if (new_r >= size_r && new_c >= size_c)
-    {
-        T* temp = new T[size_r*size_c];
-        for (int i = 0; i < size_r*size_c; ++i)
-        {
-            temp[i] = storage[i];
-        }
-    }
-
-    delete[] storage;
-    storage = new T[new_r*new_c];
-
-    if (new_r >= size_r && new_c >= size_c)
-    {
-        for(int r = 0; r < new_r; ++r)
-        {
-            for (int c = 0; c < new_c; ++c)
-            {
-                storage[r + new_r*c] = temp[r + size_r*c];
-            }
-        }
-        delete[] temp;
-    }
-
+    storage.resize(new_r*new_c);
+    LU.resize(new_r*new_c);
     size_r = new_r;
     size_c = new_c;
 
@@ -412,7 +384,12 @@ template<class T> void matrix<T>::resize(int new_r, int new_c)
     }
 
     det_check = false;
-    LU_check = false;
+    LUcheck = false;
+}
+
+template<class T> void matrix<T>::size_output()
+{
+    printf("this matrix is %i by %i \n", size_r, size_c);
 }
 
 #endif //MATRIX_H_INCLUDED

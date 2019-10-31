@@ -15,6 +15,8 @@
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_eigen.h>
 #include <boost/filesystem.hpp>
+#include <boost/multiprecision/cpp_dec_float.hpp>
+#include <boost/multiprecision/cpp_complex.hpp>
 #include <stdio.h>
 #include <string>
 #include <time.h>
@@ -23,6 +25,9 @@
 #include "matrix.hpp"
 
 typedef std::complex<double> dcomp;
+//typedef boost::multiprecision::cpp_complex<100> dcomp;
+//typedef boost::multiprecision::cpp_dec_float<100> mydouble;
+typedef double mydouble;
 
 const double pi = 3.14159265359;
 const double e = 2.71828182846;

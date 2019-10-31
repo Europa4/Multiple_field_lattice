@@ -1,5 +1,7 @@
 #include "thimble_lattice.h"
-
+using std::abs;
+using std::exp;
+using std::log;
 //simple dirac delta function
 template <class T>
 double dd(T i, T j)
@@ -322,8 +324,8 @@ void scalar_field::initialise()
     field_1[i] = field_1[i]/V;
 
     //manual force to check values
-    field_0[i] = 0.8;
-    field_1[i] = 1.0;
+    //field_0[i] = 0.8;
+    //field_1[i] = 1.0;
   }
 
   for(int k = 0; k < Nx; ++k)
@@ -728,14 +730,14 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   {
     for (int r = 0; r < Njac; ++r)
     {
-      k1_scalar[r] = h*std::conj(calc_dS(r, proposal_or - 2));
+      k1_scalar[r] = h*conj(calc_dS(r, proposal_or - 2));
       ajustment_scalar[r] = working_scalar[r] + k1_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
       {
         k1_jac[r + Njac*c] = 0.;
         for (int s = 0; s < Njac; ++s)
         {
-          k1_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, proposal_or - 2)*Jac.get_element(s, c));
+          k1_jac[r + Njac*c] += h*conj(calc_ddS(r, s, proposal_or - 2)*Jac.get_element(s, c));
         }
         ajustment_jac[r + Njac*c] = Jac.get_element(r, c) + k1_jac[r + Njac*c]/2.;
       }
@@ -746,13 +748,13 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
 
     for (int r = 0; r < Njac; ++r)
     {
-      k2_scalar[r] = h*std::conj(calc_dS(r, ajustment));
+      k2_scalar[r] = h*conj(calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
         k2_jac[r + Njac*c] = 0;
         for(int s = 0; s < Njac; ++s)
         {
-          k2_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+          k2_jac[r + Njac*c] += h*conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
       }
     }
@@ -769,13 +771,13 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
 
     for (int r = 0; r < Njac; ++r)
     {
-      k3_scalar[r] = h*std::conj(calc_dS(r, ajustment));
+      k3_scalar[r] = h*conj(calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
         k3_jac[r + Njac*c] = 0;
         for (int s = 0; s < Njac; ++s)
         {
-          k3_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+          k3_jac[r + Njac*c] += h*conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
       }
     }
@@ -792,13 +794,13 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
 
     for (int r = 0; r < Njac; ++r)
     {
-      k4_scalar[r] = h*std::conj(calc_dS(r, ajustment));
+      k4_scalar[r] = h*conj(calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
         k4_jac[r + Njac*c] = 0;
         for(int s = 0; s < Njac; ++s)
         {
-          k4_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+          k4_jac[r + Njac*c] += h*conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
       }
     }
@@ -865,7 +867,7 @@ int thimble_system::update()
 {
   bool proposal = true;
   dcomp proposed_action, proposed_detJ;
-  double log_proposal;
+  mydouble log_proposal;
   dcomp* eta = new dcomp[Njac];
   double matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
   int output = 0; //this is the return value
@@ -876,11 +878,13 @@ int thimble_system::update()
     eta[i] = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
   }
 
+  //returning the proposal to the real manifold
   matrix<dcomp> Delta = J.solve(eta);
 
   for(int i = 0; i < Njac; ++i)
   {
-    Delta.set_element(i, 0, std::real(Delta.get_element(i, 0)));
+    //taking only the elements that fit in the reduced space
+    Delta.set_element(i, 0, real(Delta.get_element(i, 0)));
   }
 
   //creating new basefield condtions
@@ -894,18 +898,19 @@ int thimble_system::update()
 
   //calculating the Jacobian, it's determinant, conjugate, and the action of the proposed field state
   matrix<dcomp> proposed_J = calc_jacobian(proposal);
-  matrix<dcomp> proposed_J_conj = proposed_J.conj();
+  matrix<dcomp> proposed_J_conj = proposed_J.conjugate();
   proposed_action = calc_S(1);
-  log_proposal = std::log(std::abs(proposed_J.get_det()));
+  log_proposal = log(abs(proposed_J.get_det()));
 
   //matrix multiplication required to calculate the accpetance exponenet
   matrix<dcomp> Delta_transpose = Delta.transpose();
 
-  matrix_exponenet = std::real((Delta*J*J_conj*Delta_transpose).get_element(0, 0));
+  matrix_exponenet = real((Delta_transpose*J*J_conj*Delta).get_element(0, 0));
+  proposed_matrix_exponenet = real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
   //exponenet for the MC test
-  exponenet = std::real(S - proposed_action) + 2.*log_proposal - 2.*std::log(std::real(J.get_det())) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
+  exponenet = real(S - proposed_action) + 2.*log_proposal - 2.*log(real(J.get_det())) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
   check = gsl_rng_uniform(my_rngPointer);
-  if (std::exp(exponenet) > check)
+  if (exp(exponenet) > check)
   {
     //proposal was accepted, transfering all the proposed parameters to the storage
     S = proposed_action;
@@ -933,16 +938,19 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
 
   dcomp* state_storage = new dcomp[(Njac + 2)*n_simulation]; //This stores the data between updates and will be saved to a file
   std::ofstream data_storage;
+  
 
-  J = calc_jacobian();
-  J_conj = J.conj();
   //initialising the fields
   for (int i = 0; i < scalars.size(); ++i)
   {
     scalars[i].initialise();
-  }
+  }  
+  J.resize(Njac, Njac);
+  J_conj.resize(Njac, Njac);
+  J = calc_jacobian();
+  J_conj = J.conjugate();
   S = calc_S(0);
-//setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
+  //setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
   for (int i = 0; i < n_burn_in; ++i)
   {
     update();
@@ -960,7 +968,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
       }
     }
     state_storage[i*(Njac + 2) + scalars.size()*Ntot] = S;
-    state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = std::log(std::real(J.get_det())) +j*std::arg(J.get_det());
+    state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = log(real(J.get_det())) +j*arg(J.get_det());
   }
   acceptance_rate /= n_simulation;
 
@@ -970,7 +978,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   {
     for(int k = 0; k < Nx; ++k)
     {
-      data_storage << std::real(scalars[i].field_0[k]) << "," << std::imag(scalars[i].field_0[k]) << ",";
+      data_storage << real(scalars[i].field_0[k]) << "," << imag(scalars[i].field_0[k]) << ",";
     }
   }
 
@@ -978,7 +986,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   {
     for (int k = 0; k < Nx; ++k)
     {
-      data_storage << std::real(scalars[i].field_1[k]) << "," << std::imag(scalars[i].field_1[k]) << ",";
+      data_storage << real(scalars[i].field_1[k]) << "," << imag(scalars[i].field_1[k]) << ",";
     }
   }
   data_storage << delta << "," << tau << "," << acceptance_rate << std::endl;
@@ -986,9 +994,9 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   {
     for (int k = 0; k < Njac + 1; ++k)
     {
-      data_storage << std::real(state_storage[i*(Njac + 2) + k]) << "," << std::imag(state_storage[i*(Njac + 2) + k]) << ",";
+      data_storage << real(state_storage[i*(Njac + 2) + k]) << "," << imag(state_storage[i*(Njac + 2) + k]) << ",";
     }
-    data_storage << std::real(state_storage[i*(Njac + 2) + Njac + 1]) << "," << std::imag(state_storage[i*(Njac + 2) + Njac + 1]) << std::endl;
+    data_storage << real(state_storage[i*(Njac + 2) + Njac + 1]) << "," << imag(state_storage[i*(Njac + 2) + Njac + 1]) << std::endl;
   }
   data_storage.close();
   delete[] state_storage;
@@ -1003,5 +1011,5 @@ void thimble_system::test()
     scalars[0].fields[0][i] = i;
   }
   dcomp test_S = calc_S();
-  printf("test_S = %f%+fi \n", std::real(test_S), std::imag(test_S));
+  printf("test_S = %f%+fi \n", real(test_S), imag(test_S));
 }

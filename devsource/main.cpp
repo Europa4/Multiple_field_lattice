@@ -1,34 +1,14 @@
+
 #include <iostream>
 #include <random>
 #include <stdio.h>
 #include <unistd.h>
 #include "mpi.h"
 
-#include "Prot.h"
+#include "thimble_lattice.h"
 using namespace std;
 #include <limits>
-/*
-class tester_class
-{
-  public:
-    tester_class(int size);
-    ~tester_class();
-    
-    int array_size;
-    int* test_array;
-};
 
-tester_class::tester_class(int size): array_size(size), test_array(new int[array_size])
-{
-  
-}
-
-tester_class::~tester_class()
-{
-  delete[] test_array;
-}
-
-*/
 int main(int argc, char **argv)
 {
   clock_t t1, t2;
@@ -47,14 +27,8 @@ int main(int argc, char **argv)
   random_device rd;
   unsigned long int seed;
   uniform_int_distribution<int> dist(0,pow(2,16));
-  initalise_dt();
-  
-  /*
-  seed = 5;
-  c_phi phi(1.0, 0.5, 0.0, 0.1, seed);
-  phi.simulate(pow(10,3), pow(10,5), 1, 50);
-  */
 
+  
  
   for(int i = 0; i < 1; ++i)
   {
@@ -64,12 +38,14 @@ int main(int argc, char **argv)
 //    sys.add_interaction(1., {4});
     sys.set_path("Data_matrix/");
     sys.set_name("phi_" + std::to_string(i*world_size + world_rank));
-    sys.simulate(pow(10, 1), pow(10, 1));
+    sys.simulate(pow(10, 3), pow(10, 5));
     printf("simulation %i completed \n", i*world_size + world_rank);
   }
-  
  
-  
+
   MPI_Finalize(); //closing the MPI enviroment
   return 0;
 }
+
+
+
