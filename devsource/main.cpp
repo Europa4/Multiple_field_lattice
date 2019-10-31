@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include "mpi.h"
 
-#include "thimble_lattice.h"
+#include "thimble_lattice.hpp"
 using namespace std;
 #include <limits>
 
@@ -28,9 +28,9 @@ int main(int argc, char **argv)
   unsigned long int seed;
   uniform_int_distribution<int> dist(0,pow(2,16));
 
-  
+
  
-  for(int i = 0; i < 1; ++i)
+  for(int i = 0; i < 6; ++i)
   {
     seed = dist(rd);
     thimble_system sys(1, 10, 1.5, seed);

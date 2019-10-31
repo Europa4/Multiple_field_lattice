@@ -12,7 +12,7 @@ $(program): $(objects)
 main.o: main.cpp 
 	mpic++ -c main.cpp $(LIBS)
 
-thimble_lattice.o: thimble_lattice.cpp thimble_lattice.h matrix.hpp
+thimble_lattice.o: thimble_lattice.cpp thimble_lattice.hpp matrix.hpp
 	mpic++ -c thimble_lattice.cpp $(LIBS)
 
 clean:

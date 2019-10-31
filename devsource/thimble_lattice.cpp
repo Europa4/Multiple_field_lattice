@@ -1,4 +1,4 @@
-#include "thimble_lattice.h"
+#include "thimble_lattice.hpp"
 using std::abs;
 using std::exp;
 using std::log;
