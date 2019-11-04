@@ -624,6 +624,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2,
     }
     interaction *= -1.*j*dx*(scalars[field_1].path[scalars[field_1].calc_n(site_1)] + scalars[field_1].path_offset[scalars[field_1].calc_n(site_1)])/2.;
   }
+  //printf("site = %i %i, free action = %f%+fi, interaction = %f%+fi \n", site_1, site_2, real(ddS), imag(ddS), real(interaction), imag(interaction));
   ddS += interaction;
   return ddS;
 }
@@ -869,7 +870,7 @@ int thimble_system::update()
   dcomp proposed_action, proposed_detJ;
   mydouble log_proposal;
   dcomp* eta = new dcomp[Njac];
-  double matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
+  mydouble matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
   int output = 0; //this is the return value
 
   for(int i = 0; i < Njac; ++i)
@@ -880,7 +881,6 @@ int thimble_system::update()
 
   //returning the proposal to the real manifold
   matrix<dcomp> Delta = J.solve(eta);
-
   for(int i = 0; i < Njac; ++i)
   {
     //taking only the elements that fit in the reduced space
@@ -895,20 +895,20 @@ int thimble_system::update()
       scalars[i].fields[3][k] = scalars[i].fields[2][k] + Delta.get_element(k + i*Ntot, 0);
     }
   }
-
+  
   //calculating the Jacobian, it's determinant, conjugate, and the action of the proposed field state
   matrix<dcomp> proposed_J = calc_jacobian(proposal);
   matrix<dcomp> proposed_J_conj = proposed_J.conjugate();
   proposed_action = calc_S(1);
-  log_proposal = log(abs(proposed_J.get_det()));
+  log_proposal = (mydouble) log(abs(proposed_J.get_det()));
 
   //matrix multiplication required to calculate the accpetance exponenet
   matrix<dcomp> Delta_transpose = Delta.transpose();
 
-  matrix_exponenet = real((Delta_transpose*J*J_conj*Delta).get_element(0, 0));
-  proposed_matrix_exponenet = real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
+  matrix_exponenet = (mydouble) real((Delta_transpose*J*J_conj*Delta).get_element(0, 0));
+  proposed_matrix_exponenet = (mydouble) real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
   //exponenet for the MC test
-  exponenet = real(S - proposed_action) + 2.*log_proposal - 2.*log(real(J.get_det())) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
+  exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(real(J.get_det()))) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
   check = gsl_rng_uniform(my_rngPointer);
   if (exp(exponenet) > check)
   {
@@ -944,7 +944,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   for (int i = 0; i < scalars.size(); ++i)
   {
     scalars[i].initialise();
-  }  
+  }
   J.resize(Njac, Njac);
   J_conj.resize(Njac, Njac);
   J = calc_jacobian();
@@ -1006,10 +1006,5 @@ void thimble_system::test()
 {
   add_scalar_field(1.);
   scalars[0].initialise();
-  for (int i = 0; i < Ntot; ++i)
-  {
-    scalars[0].fields[0][i] = i;
-  }
-  dcomp test_S = calc_S();
-  printf("test_S = %f%+fi \n", real(test_S), imag(test_S));
+  matrix<dcomp> Jac = calc_jacobian();
 }
