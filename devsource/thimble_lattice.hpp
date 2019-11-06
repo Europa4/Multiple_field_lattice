@@ -25,10 +25,10 @@
 
 #include "matrix.hpp"
 
-//typedef std::complex<double> dcomp;
-typedef boost::multiprecision::cpp_complex_quad dcomp;
-typedef boost::multiprecision::float128 mydouble;
-//typedef double mydouble;
+typedef std::complex<double> dcomp;
+//typedef boost::multiprecision::cpp_complex_quad dcomp;
+//typedef boost::multiprecision::float128 mydouble;
+typedef double mydouble;
 
 const double pi = 3.14159265359;
 const double e = 2.71828182846;
@@ -52,12 +52,14 @@ class interaction
     protected:
 
     public:
-    dcomp base(int site, thimble_system* current_system, int field_type = 0);
-    dcomp first_derivative(int site, int field, thimble_system* current_system, int field_type = 0);
-    dcomp second_derivative(int site, int field_1, int field_2, thimble_system* current_system, int field_type = 0);
+    dcomp base(int site, thimble_system &current_system, int field_type = 0);
+    dcomp first_derivative(int site, int field, thimble_system &current_system, int field_type = 0);
+    dcomp second_derivative(int site, int field_1, int field_2, thimble_system &current_system, int field_type = 0);
 
     //constructor
     interaction(double Coupling, std::vector<int> Powers);
+
+    friend class thimble_system;
 };
 
 class scalar_field
@@ -174,6 +176,7 @@ class thimble_system
     
     //friendship declaration
     friend class scalar_field;
+    friend class interaction;
 };
 
 #endif //THIMBLE_LATTICE_H_INCLUDED
