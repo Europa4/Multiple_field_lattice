@@ -30,32 +30,22 @@ int main(int argc, char **argv)
 
 
   std::vector<int> powers = {4};
-  /*
+
   for(int i = 0; i < 50; ++i)
   {
     seed = dist(rd);
+    printf("simulation %i initiated with seed %i \n", i, seed);
     thimble_system sys(1, 10, 1.0, seed);
     sys.add_scalar_field(1.0);
-    sys.add_interaction(1., powers);
+    sys.add_scalar_field(3.0);
+    //sys.add_interaction(1./24, powers);
     sys.set_path("Data_matrix/");
     sys.set_name("phi_" + std::to_string(i*world_size + world_rank));
     sys.simulate(pow(10, 3), pow(10, 5));
     printf("simulation %i completed \n", i*world_size + world_rank);
   }
-  */
+  
 
- while(true)
- {
-    seed = dist(rd);
-    printf("seed = %i \n", seed);
-    thimble_system sys(1, 10, 1.0, seed);
-    sys.add_scalar_field(1.0);
-    //sys.add_interaction(1., powers);
-    sys.set_path("Data_matrix/");
-    sys.set_name("phi_" + std::to_string(seed));
-    sys.simulate(pow(10, 3), pow(10, 5));
- }
- 
 
   MPI_Finalize(); //closing the MPI enviroment
   return 0;

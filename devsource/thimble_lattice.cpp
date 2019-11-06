@@ -21,53 +21,54 @@ interaction::interaction(double Coupling, std::vector<int> Powers) : coupling(Co
 
 }
 
-dcomp interaction::base(int site, thimble_system* current_system, int field_type)
+dcomp interaction::base(int site, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
+
   for(int i = 0; i < powers.size(); ++i)
   {
     //applies all the fields raised to the relevant power
-    interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]); 
+    interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]); 
   }
-
   return interaction_contribution;
 }
 
-dcomp interaction::first_derivative(int site, int field, thimble_system* current_system, int field_type)
+dcomp interaction::first_derivative(int site, int field, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
   //all the non-derivative fields up to the derivative
   for (int i = 0; i < field; ++i)
   {
-    interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
+    interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
   }
+
   //contribution of the derivative field
-  interaction_contribution *= double(powers[field])*pow(current_system->scalars[field].fields[field_type][site], powers[field] - 1);
+  interaction_contribution *= double(powers[field])*pow(current_system.scalars[field].fields[field_type][site], powers[field] - 1);
 
   //contribution of all non-derivative fields from beyond the derivative field value
   for (int i = field + 1; i < powers.size(); ++i)
   {
-    interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
+    interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
   }
   return interaction_contribution;
 }
 
-dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system* current_system, int field_type)
+dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
   if (field_1 == field_2)
   {
     for (int i = 0; i < field_1; ++i)
     {
-      interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
+      interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
     }
     //contribution of the derivative field
-    interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system->scalars[field_1].fields[field_type][site], powers[field_1] - 2);
+    interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system.scalars[field_1].fields[field_type][site], powers[field_1] - 2);
 
     //contribution of all non-derivative fields from beyond the derivative field value
     for (int i = field_1 + 1; i < powers.size(); ++i)
     {
-      interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
+      interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
     }
   }
   else
@@ -585,9 +586,9 @@ dcomp thimble_system::calc_dS(int site, int field, int field_type)
   for (int i = 0; i < interactions.size(); ++i)
   {
     //looping through the first derivatives of all the interactions (derivatives with respect to this field)
-    interaction += interactions[i].first_derivative(site, field, this, field_type); 
+    interaction += interactions[i].first_derivative(site, field, *this, field_type); 
   }
-  interaction *= -1.*dx*j*(scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
+  interaction *= dx*j*(scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
   dS += interaction;
   return dS;
 }
@@ -609,7 +610,7 @@ dcomp thimble_system::calc_dS(int site, int field_type)
 
 dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2, int field_type)
 {
-  dcomp ddS;
+  dcomp ddS = 0;
   dcomp interaction = 0;
   if (field_1 == field_2)
   {
@@ -620,11 +621,10 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2,
   {
     for (int i = 0; i < interactions.size(); ++i)
     {
-      interaction *= interactions[i].second_derivative(site_1, field_1, field_2, this, field_type);
+      interaction += interactions[i].second_derivative(site_1, field_1, field_2, *this, field_type);
     }
     interaction *= -1.*j*dx*(scalars[field_1].path[scalars[field_1].calc_n(site_1)] + scalars[field_1].path_offset[scalars[field_1].calc_n(site_1)])/2.;
   }
-  //printf("site = %i %i, free action = %f%+fi, interaction = %f%+fi \n", site_1, site_2, real(ddS), imag(ddS), real(interaction), imag(interaction));
   ddS += interaction;
   return ddS;
 }
@@ -858,7 +858,7 @@ dcomp thimble_system::calc_S(int field_type)
     for (int k = 0; k < Ntot; ++k)
     {
       n = scalars[0].calc_n(k);
-      S += -1.*j*dx*(scalars[0].path[n] + scalars[0].path_offset[n])*interactions[i].base(k, this, field_type)/2.;
+      S += -1.*j*dx*(scalars[0].path[n] + scalars[0].path_offset[n])*interactions[i].base(k, *this, field_type)/2.;
     }
   }
   return S;
