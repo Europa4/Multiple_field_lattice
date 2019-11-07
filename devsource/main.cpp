@@ -1,33 +1,14 @@
+
 #include <iostream>
 #include <random>
 #include <stdio.h>
 #include <unistd.h>
 #include "mpi.h"
 
-#include "Prot.h"
+#include "thimble_lattice.hpp"
 using namespace std;
-/*
-class tester_class
-{
-  public:
-    tester_class(int size);
-    ~tester_class();
-    
-    int array_size;
-    int* test_array;
-};
+#include <limits>
 
-tester_class::tester_class(int size): array_size(size), test_array(new int[array_size])
-{
-  
-}
-
-tester_class::~tester_class()
-{
-  delete[] test_array;
-}
-
-*/
 int main(int argc, char **argv)
 {
   clock_t t1, t2;
@@ -45,21 +26,30 @@ int main(int argc, char **argv)
   
   random_device rd;
   unsigned long int seed;
-  uniform_int_distribution<int> dist(0,pow(2,16));
-  initalise_dt();
+  uniform_int_distribution<int> dist(0, pow(2,16));
+
+
+  std::vector<int> powers = {4};
+
+  for(int i = 0; i < 50; ++i)
+  {
+    seed = dist(rd);
+    printf("simulation %i initiated with seed %i \n", i, seed);
+    thimble_system sys(1, 10, 1.0, seed);
+    sys.add_scalar_field(1.0);
+    //sys.add_scalar_field(3.0);
+    //sys.add_interaction(1./24, powers);
+    sys.set_path("Data_matrix/");
+    sys.set_name("phi_" + std::to_string(i*world_size + world_rank));
+    sys.simulate(pow(10, 3), pow(10, 5));
+    printf("simulation %i completed \n", i*world_size + world_rank);
+  }
   
-  /*
-  seed = 5;
-  c_phi phi(1.0, 0.5, 0.0, 0.1, seed);
-  phi.simulate(pow(10,3), pow(10,5), 1, 50);
-  */
-  thimble_system sys(1, 10, 1.0, 5);
-  sys.add_scalar_field();
-  sys.scalars[0].set_mass(1.0);
-  printf("is empty = %i \n",sys.scalars.empty());
-  printf("mass of the scalar field = %f \n", sys.scalars[0].get_mass());
- 
+
 
   MPI_Finalize(); //closing the MPI enviroment
   return 0;
 }
+
+
+
