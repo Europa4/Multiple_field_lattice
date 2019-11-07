@@ -153,8 +153,8 @@ class thimble_system
     dcomp calc_ddS(int site_1, int site_2, int field_type = 0);
     field_id_return calc_field(int master_site);
     void sync_ajustment(dcomp ajustment[]);
-    //field type controls which field is used to calculate s, ds, and dds. 0 is flowed, 1 is proposed_flowed, 2 is base, 3 is proposed_base, 4 is ajustment used by the ODE solver 
     int update();
+    
 
     public:
     std::vector<scalar_field> scalars; //the scalar fields of the simulation SHOULDN'T BE PUBLIC, ONLY IS FOR TESTING
@@ -168,6 +168,11 @@ class thimble_system
     void set_name(std::string new_name) {file_name = new_name;};
     void simulate(int n_burn_in, int n_simulation);
     dcomp calc_S(int field_type = 0);
+    void set_field_mass(int field_number, double new_mass);
+    void set_dt(double new_dt);
+    void set_occupation_number(int field_number, int new_occupation_number);
+    void set_occupation_number(int field_number, int new_occupation_number[]);
+    void set_occupation_number(int field_number, std::vector<int> new_occupation_number);
     void test();
     
     //constructor and destructor
