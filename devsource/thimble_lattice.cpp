@@ -308,6 +308,7 @@ void scalar_field::initialise()
     omega_p = pow(pow(p,2) + pow(m,2),0.5);
     omega_tilde = acos(1 - pow(omega_p*dt,2)/2)/dt;
     Omega_p = sin(omega_p*dt)/dt; //configuring variables for this momentum
+    printf("omega_p = %f \n", omega_p);
     if ((Nx - i)%Nx == 0)
     {
         //corner mode case
@@ -351,12 +352,20 @@ void scalar_field::initialise()
     fields[2][i] = 0;
   }
 
-
   for (int i = 0; i < Ntot; ++i)
   {
     fields[0][i] = fields[2][i];
   }
-
+  
+  
+  for(int k = 0; k < Nx; ++k)
+  {
+    printf("field_0[%i] = %f%+fi \n", k, real(field_0[k]), imag(field_0[k]));
+  }
+  for(int i = 0; i < Nx; ++i)
+  {
+    field_2[i] = fields[2][i*Nrpath + 1];
+  }
   //setting up Mou's constant arrays
   for (int i = 0; i < Ntot; ++i)
   {
@@ -400,10 +409,7 @@ void scalar_field::initialise()
     C[2][i*Nrpath] *= -1.;
   }
 
-  for(int i = 0; i < Nx; ++i)
-  {
-    field_2[i] = fields[2][i*Nrpath + 1];
-  }
+
 }
 
 dcomp scalar_field::free_action(int site, int field_type)
@@ -964,15 +970,18 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
     {
       for (int r = 0; r < Ntot; ++r)
       {
+        //writing each scalar into the array
         state_storage[i*(Njac + 2) + k*Ntot + r] = scalars[k].fields[0][r];
       }
     }
     state_storage[i*(Njac + 2) + scalars.size()*Ntot] = S;
     state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = log(real(J.get_det())) +j*arg(J.get_det());
+    //adding auxiliary parameters, action and the log determinant
   }
   acceptance_rate /= n_simulation;
 
   data_storage.open(rel_path + file_name);
+  //saving initial conditions, random seed, and simulation parameters
   data_storage << rng_seed << ",";
   for(int i = 0; i < scalars.size(); ++i)
   {
@@ -981,7 +990,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
       data_storage << real(scalars[i].field_0[k]) << "," << imag(scalars[i].field_0[k]) << ",";
     }
   }
-
+  //saving the data previously stored
   for (int i = 0; i < scalars.size(); ++i)
   {
     for (int k = 0; k < Nx; ++k)
@@ -994,12 +1003,50 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   {
     for (int k = 0; k < Njac + 1; ++k)
     {
+      //split the complex data into real and imaginary components
       data_storage << real(state_storage[i*(Njac + 2) + k]) << "," << imag(state_storage[i*(Njac + 2) + k]) << ",";
     }
     data_storage << real(state_storage[i*(Njac + 2) + Njac + 1]) << "," << imag(state_storage[i*(Njac + 2) + Njac + 1]) << std::endl;
   }
   data_storage.close();
   delete[] state_storage;
+}
+
+void thimble_system::set_field_mass(int field_number, double new_mass)
+{
+  //external interface for the user to set a new mass for the field
+  scalars[field_number].set_mass(new_mass);
+}
+
+void thimble_system::set_dt(double new_dt)
+{
+  //external interface to let the user resize the lattice
+  for(uint i = 0; i < scalars.size(); ++i)
+  {
+    scalars[i].set_dt(new_dt);
+  }
+  dt = new_dt;
+}
+
+void thimble_system::set_occupation_number(int field_number, int new_occupation_number)
+{
+  scalars[field_number].set_occupation_number(new_occupation_number);
+}
+
+void thimble_system::set_occupation_number(int field_number, int new_occupation_number[])
+{
+  scalars[field_number].set_occupation_number(new_occupation_number);
+}
+
+void thimble_system::set_occupation_number(int field_number, std::vector<int> new_occupation_number)
+{
+  int* internal = new int[Nx];
+  for(int i = 0; i < Nx; ++i)
+  {
+    internal[i] = new_occupation_number[i];
+  }
+  scalars[field_number].set_occupation_number(internal);
+  delete[] internal;
 }
 
 void thimble_system::test()
