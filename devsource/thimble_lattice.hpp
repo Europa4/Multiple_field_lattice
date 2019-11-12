@@ -116,7 +116,7 @@ class scalar_field
     double get_square_mass() {return squareMass;};
 
     //constructor, destructor and copy constructor
-    scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer);
+    scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer, double system_dt, double system_dx);
     ~scalar_field();
     scalar_field(const scalar_field &obj);
 
@@ -154,6 +154,7 @@ class thimble_system
     field_id_return calc_field(int master_site);
     void sync_ajustment(dcomp ajustment[]);
     int update();
+    void pre_simulation_check();
     
 
     public:
@@ -173,6 +174,7 @@ class thimble_system
     void set_occupation_number(int field_number, int new_occupation_number);
     void set_occupation_number(int field_number, int new_occupation_number[]);
     void set_occupation_number(int field_number, std::vector<int> new_occupation_number);
+    void set_proposal_size(double new_delta);
     void test();
     
     //constructor and destructor

@@ -79,7 +79,7 @@ dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble
 }
 
 //scalar field class to be incorporated into a system class (class composition)*******************************************************
-scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupation_number(new int[x_dim]),
+scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer, double system_dt, double system_dx) : occupation_number(new int[x_dim]),
   Nx(x_dim), //member initialiser list 
   Nt(t_dim), 
   Npath(2*Nt), 
@@ -87,8 +87,8 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   Ntot(Nrpath*Nx), 
   m(0),
   squareMass(0), 
-  dt(0.75),
-  dx(1),
+  dt(system_dt),
+  dx(system_dx),
   path(new double[Nrpath]),
   path_offset(new double[Nrpath]),
   is_flowed(false),
@@ -308,7 +308,6 @@ void scalar_field::initialise()
     omega_p = pow(pow(p,2) + pow(m,2),0.5);
     omega_tilde = acos(1 - pow(omega_p*dt,2)/2)/dt;
     Omega_p = sin(omega_p*dt)/dt; //configuring variables for this momentum
-    printf("omega_p = %f \n", omega_p);
     if ((Nx - i)%Nx == 0)
     {
         //corner mode case
@@ -357,11 +356,6 @@ void scalar_field::initialise()
     fields[0][i] = fields[2][i];
   }
   
-  
-  for(int k = 0; k < Nx; ++k)
-  {
-    printf("field_0[%i] = %f%+fi \n", k, real(field_0[k]), imag(field_0[k]));
-  }
   for(int i = 0; i < Nx; ++i)
   {
     field_2[i] = fields[2][i*Nrpath + 1];
@@ -408,8 +402,6 @@ void scalar_field::initialise()
     C[1][(i + 1)*Nrpath - 1] *= -1.;
     C[2][i*Nrpath] *= -1.;
   }
-
-
 }
 
 dcomp scalar_field::free_action(int site, int field_type)
@@ -551,12 +543,12 @@ thimble_system::~thimble_system()
 }
 void thimble_system::add_scalar_field()
 {
-  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
+  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer, dt, dx));
 }
 
 void thimble_system::add_scalar_field(double mass)
 {
-  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
+  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer, dt , dx));
   scalars[scalars.size() - 1].set_mass(mass);
 }
 
@@ -939,6 +931,7 @@ int thimble_system::update()
 
 void thimble_system::simulate(int n_burn_in, int n_simulation)
 {
+  pre_simulation_check();
   Njac = scalars.size()*Ntot; //setting the size of the Jacobian "matricies"
   NjacSquared = pow(Njac, 2);
 
@@ -1030,16 +1023,19 @@ void thimble_system::set_dt(double new_dt)
 
 void thimble_system::set_occupation_number(int field_number, int new_occupation_number)
 {
+  //Allows the user to set a uniform occupation number for a field
   scalars[field_number].set_occupation_number(new_occupation_number);
 }
 
 void thimble_system::set_occupation_number(int field_number, int new_occupation_number[])
 {
+  //Allows the user to set a non-uniform occupation number for a given field
   scalars[field_number].set_occupation_number(new_occupation_number);
 }
 
 void thimble_system::set_occupation_number(int field_number, std::vector<int> new_occupation_number)
 {
+  //thin wrapper around the above function, allowing it to take either a native C style array or a more C++ style vector.
   int* internal = new int[Nx];
   for(int i = 0; i < Nx; ++i)
   {
@@ -1047,6 +1043,52 @@ void thimble_system::set_occupation_number(int field_number, std::vector<int> ne
   }
   scalars[field_number].set_occupation_number(internal);
   delete[] internal;
+}
+
+void thimble_system::set_proposal_size(double new_delta)
+{
+  //Alows the user to specify the proposal step size for the simulation.
+  delta = new_delta;
+  sigma = delta/pow(2, 0.5);
+}
+
+void thimble_system::pre_simulation_check()
+{ //this checks all the masses are in the correct range for the simulation
+  std::vector<uint> test_failed;
+  double test_condition, new_dt, possible_new_dt;
+  new_dt = pow(10, 100);
+  for(uint i = 0; i < scalars.size(); ++i)
+  {
+    if(Nx == 1)
+    {
+      test_condition = scalars[i].m;
+    }
+    else
+    {
+      test_condition = sqrt(4*pow(pi, 2)/pow(dx,2) + scalars[i].squareMass);
+    }
+    if (test_condition > (2/dt))
+    {
+      test_failed.push_back(i);
+      possible_new_dt = 2./test_condition;
+      if(new_dt > possible_new_dt)
+      {
+        new_dt = possible_new_dt; 
+      }
+    }
+  }
+
+  if(test_failed.size() != 0)
+  {
+    int number_of_new_sites = int(ceil((dt/new_dt)*Nt));
+    printf("Resolution insufficient for the mass scales involved. The following fields have too high mass: \n");
+    for(uint i = 0; i < test_failed.size(); ++i)
+    {
+      printf("Scalar field %i \n", test_failed[i]);
+    }
+    printf("This can be solved by reducing the temporal link size to at least %f. Doing this will require at least %i time sites to maintain the existing range. \n", new_dt, number_of_new_sites);
+    exit(11);
+  }
 }
 
 void thimble_system::test()
