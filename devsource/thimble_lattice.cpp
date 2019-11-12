@@ -1,5 +1,7 @@
-#include "thimble_lattice.h"
-
+#include "thimble_lattice.hpp"
+using std::abs;
+using std::exp;
+using std::log;
 //simple dirac delta function
 template <class T>
 double dd(T i, T j)
@@ -19,53 +21,54 @@ interaction::interaction(double Coupling, std::vector<int> Powers) : coupling(Co
 
 }
 
-dcomp interaction::base(int site, thimble_system* current_system, int field_type)
+dcomp interaction::base(int site, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
+
   for(int i = 0; i < powers.size(); ++i)
   {
     //applies all the fields raised to the relevant power
-    interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]); 
+    interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]); 
   }
-
   return interaction_contribution;
 }
 
-dcomp interaction::first_derivative(int site, int field, thimble_system* current_system, int field_type)
+dcomp interaction::first_derivative(int site, int field, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
   //all the non-derivative fields up to the derivative
   for (int i = 0; i < field; ++i)
   {
-    interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
+    interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
   }
+
   //contribution of the derivative field
-  interaction_contribution *= double(powers[field])*pow(current_system->scalars[field].fields[field_type][site], powers[field] - 1);
+  interaction_contribution *= double(powers[field])*pow(current_system.scalars[field].fields[field_type][site], powers[field] - 1);
 
   //contribution of all non-derivative fields from beyond the derivative field value
   for (int i = field + 1; i < powers.size(); ++i)
   {
-    interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
+    interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
   }
   return interaction_contribution;
 }
 
-dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system* current_system, int field_type)
+dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
   if (field_1 == field_2)
   {
     for (int i = 0; i < field_1; ++i)
     {
-      interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
+      interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
     }
     //contribution of the derivative field
-    interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system->scalars[field_1].fields[field_type][site], powers[field_1] - 2);
+    interaction_contribution *= double(powers[field_1])*double(powers[field_1] - 1)*pow(current_system.scalars[field_1].fields[field_type][site], powers[field_1] - 2);
 
     //contribution of all non-derivative fields from beyond the derivative field value
     for (int i = field_1 + 1; i < powers.size(); ++i)
     {
-      interaction_contribution *= pow(current_system->scalars[i].fields[field_type][site], powers[i]);
+      interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
     }
   }
   else
@@ -76,7 +79,7 @@ dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble
 }
 
 //scalar field class to be incorporated into a system class (class composition)*******************************************************
-scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupation_number(new int[x_dim]),
+scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer, double system_dt, double system_dx) : occupation_number(new int[x_dim]),
   Nx(x_dim), //member initialiser list 
   Nt(t_dim), 
   Npath(2*Nt), 
@@ -84,8 +87,8 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer) : occupat
   Ntot(Nrpath*Nx), 
   m(0),
   squareMass(0), 
-  dt(0.75),
-  dx(1),
+  dt(system_dt),
+  dx(system_dx),
   path(new double[Nrpath]),
   path_offset(new double[Nrpath]),
   is_flowed(false),
@@ -285,17 +288,18 @@ void scalar_field::initialise()
     //this is called *after* the constructor, because we need to specify the mass
   double a[Nx], b[Nx], c[Nx], d[Nx];
   double p, omega_p, omega_tilde, Omega_p, V;
+
   
   for (int i = 0; i < Nx; ++i)
   {
-      a[i] = gsl_ran_gaussian(my_rngPointer, 1); //Yeah naming a variable a, b, c, d isn't helpful, but it's what we call them in the maths. Besides, they're local to this function.
-      b[i] = gsl_ran_gaussian(my_rngPointer, 1);
-      c[i] = gsl_ran_gaussian(my_rngPointer, 1);
-      d[i] = gsl_ran_gaussian(my_rngPointer, 1);
-      field_0[i] = 0;
-      field_1[i] = 0;
+    a[i] = gsl_ran_gaussian(my_rngPointer, 1); //Yeah naming a variable a, b, c, d isn't helpful, but it's what we call them in the maths. Besides, they're local to this function.
+    b[i] = gsl_ran_gaussian(my_rngPointer, 1);
+    c[i] = gsl_ran_gaussian(my_rngPointer, 1);
+    d[i] = gsl_ran_gaussian(my_rngPointer, 1);
+    field_0[i] = 0;
+    field_1[i] = 0;
   } //random number arrays for Mou's initial conditions, and the initial states of the phi field
-  
+
   V = Nx*dx;
 
   for (int i = 0; i < Nx; ++i)
@@ -324,7 +328,7 @@ void scalar_field::initialise()
     //field_0[i] = 0.8;
     //field_1[i] = 1.0;
   }
-  
+
   for(int k = 0; k < Nx; ++k)
   {
       fields[2][0 + Nrpath*k] = field_1[k];
@@ -347,12 +351,15 @@ void scalar_field::initialise()
     fields[2][i] = 0;
   }
 
-
   for (int i = 0; i < Ntot; ++i)
   {
     fields[0][i] = fields[2][i];
   }
-
+  
+  for(int i = 0; i < Nx; ++i)
+  {
+    field_2[i] = fields[2][i*Nrpath + 1];
+  }
   //setting up Mou's constant arrays
   for (int i = 0; i < Ntot; ++i)
   {
@@ -400,8 +407,21 @@ void scalar_field::initialise()
 dcomp scalar_field::free_action(int site, int field_type)
 {
   //Standard P^2 - m^2 action
-  dcomp S = -1.*(C[1][site]/2.)*pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2) 
-    - pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2) - squareMass*pow(fields[field_type][site], 2)));
+  dcomp S = 0;
+  int n = calc_n(site);
+  if(n != Nrpath - 1)
+  {
+    S = -1.*(C[1][site]/2.)*pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2)
+      - pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2)) + squareMass*pow(fields[field_type][site], 2)/2.)
+      + C[4][site]*fields[field_type][site];
+  }
+  else
+  {
+    //This is the anti periodic boundary term
+    S = (C[1][site]/2.)*pow(fields[field_type][positive_time_site[site]] + fields[field_type][site], 2)
+      - pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2)) + squareMass*pow(fields[field_type][site], 2)/2.)
+      + C[4][site]*fields[field_type][site];
+  }
   return S;
 }
 
@@ -494,7 +514,8 @@ Npath(2*Nt),
 Nrpath(Npath - 4), 
 Ntot(Nrpath*Nx),
 rng_seed(seed),
-jac_defined(false),
+J(0,0),
+J_conj(0,0),
 rel_path(""),
 file_name("0"),
 j(0,1),
@@ -519,22 +540,15 @@ delta(0.1)
 thimble_system::~thimble_system()
 {
   gsl_rng_free(my_rngPointer);
-  if (jac_defined)
-  {
-    delete[] J;
-    delete[] invJ;
-    delete[] conj_J;
-  }
 }
-
 void thimble_system::add_scalar_field()
 {
-  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
+  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer, dt, dx));
 }
 
 void thimble_system::add_scalar_field(double mass)
 {
-  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer));
+  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer, dt , dx));
   scalars[scalars.size() - 1].set_mass(mass);
 }
 
@@ -570,9 +584,9 @@ dcomp thimble_system::calc_dS(int site, int field, int field_type)
   for (int i = 0; i < interactions.size(); ++i)
   {
     //looping through the first derivatives of all the interactions (derivatives with respect to this field)
-    interaction += interactions[i].first_derivative(site, field, this, field_type); 
+    interaction += interactions[i].first_derivative(site, field, *this, field_type); 
   }
-  interaction *= -1.*dx*j*(scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
+  interaction *= dx*j*(scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
   dS += interaction;
   return dS;
 }
@@ -594,7 +608,7 @@ dcomp thimble_system::calc_dS(int site, int field_type)
 
 dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2, int field_type)
 {
-  dcomp ddS;
+  dcomp ddS = 0;
   dcomp interaction = 0;
   if (field_1 == field_2)
   {
@@ -605,7 +619,7 @@ dcomp thimble_system::calc_ddS(int site_1, int site_2, int field_1, int field_2,
   {
     for (int i = 0; i < interactions.size(); ++i)
     {
-      interaction *= interactions[i].second_derivative(site_1, field_1, field_2, this, field_type);
+      interaction += interactions[i].second_derivative(site_1, field_1, field_2, *this, field_type);
     }
     interaction *= -1.*j*dx*(scalars[field_1].path[scalars[field_1].calc_n(site_1)] + scalars[field_1].path_offset[scalars[field_1].calc_n(site_1)])/2.;
   }
@@ -659,7 +673,7 @@ void thimble_system::sync_ajustment(dcomp ajustment[])
   }
 }
 
-dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
+matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
 {
   //function calculates the Jacobian and it's determinant from either the proposed or orignal fields
   dcomp* working_scalar = new dcomp[Njac];
@@ -676,10 +690,8 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   dcomp* k4_jac = new dcomp[NjacSquared];
   int ajustment = 4;
 
-  int s = 1;
-  gsl_permutation* p = gsl_permutation_alloc(Njac);
-  gsl_matrix_complex* mJ = gsl_matrix_complex_alloc(Njac, Njac);
-  gsl_complex det_gsl;
+  matrix<dcomp> Jac(Njac, Njac);
+  dcomp jac_element;
 
   //identifying if it's the proposal or exising fields we wish to flow
   int proposal_or = 2;
@@ -691,6 +703,7 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   {
     for (int k = 0; k < Ntot; ++k)
     {
+      //resetting the flowed field to the base field. At this point we're at tau = 0 so the flowed field and base field should be identical
       scalars[i].fields[proposal_or - 2][k] = scalars[i].fields[proposal_or][k];
       working_scalar[i*Ntot + k] = scalars[i].fields[proposal_or][k];
     }
@@ -703,11 +716,11 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
     {
       if (r == c)
       {
-        Jac[r + Njac*c] = 1.;
+        Jac.set_element(r, c, 1);
       }
       else
       {
-        Jac[r + Njac*c] = 0.;
+        Jac.set_element(r, c, 0);
       }
     }
   }
@@ -716,16 +729,16 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   {
     for (int r = 0; r < Njac; ++r)
     {
-      k1_scalar[r] = h*std::conj(calc_dS(r, proposal_or - 2));
+      k1_scalar[r] = h*conj(calc_dS(r, proposal_or - 2));
       ajustment_scalar[r] = working_scalar[r] + k1_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
       {
         k1_jac[r + Njac*c] = 0.;
         for (int s = 0; s < Njac; ++s)
         {
-          k1_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, proposal_or - 2)*Jac[s + Njac*c]);
+          k1_jac[r + Njac*c] += h*conj(calc_ddS(r, s, proposal_or - 2)*Jac.get_element(s, c));
         }
-        ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k1_jac[r + Njac*c]/2.;
+        ajustment_jac[r + Njac*c] = Jac.get_element(r, c) + k1_jac[r + Njac*c]/2.;
       }
     }
     sync_ajustment(ajustment_scalar);
@@ -734,13 +747,13 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
 
     for (int r = 0; r < Njac; ++r)
     {
-      k2_scalar[r] = h*std::conj(calc_dS(r, ajustment));
+      k2_scalar[r] = h*conj(calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
         k2_jac[r + Njac*c] = 0;
         for(int s = 0; s < Njac; ++s)
         {
-          k2_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+          k2_jac[r + Njac*c] += h*conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
       }
     }
@@ -750,20 +763,20 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       ajustment_scalar[r] = working_scalar[r] + k2_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
       {
-        ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k2_jac[r + Njac*c]/2.;
+        ajustment_jac[r + Njac*c] = Jac.get_element(r,c) + k2_jac[r + Njac*c]/2.;
       }
     }
     sync_ajustment(ajustment_scalar);
 
     for (int r = 0; r < Njac; ++r)
     {
-      k3_scalar[r] = h*std::conj(calc_dS(r, ajustment));
+      k3_scalar[r] = h*conj(calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
         k3_jac[r + Njac*c] = 0;
         for (int s = 0; s < Njac; ++s)
         {
-          k3_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+          k3_jac[r + Njac*c] += h*conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
       }
     }
@@ -773,20 +786,20 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       ajustment_scalar[r] = working_scalar[r] + k3_scalar[r];
       for (int c = 0; c < Njac; ++c)
       {
-        ajustment_jac[r + Njac*c] = Jac[r + Njac*c] + k3_jac[r + Njac*c];
+        ajustment_jac[r + Njac*c] = Jac.get_element(r, c) + k3_jac[r + Njac*c];
       }
     }
     sync_ajustment(ajustment_scalar);
 
     for (int r = 0; r < Njac; ++r)
     {
-      k4_scalar[r] = h*std::conj(calc_dS(r, ajustment));
+      k4_scalar[r] = h*conj(calc_dS(r, ajustment));
       for (int c = 0; c < Njac; ++c)
       {
         k4_jac[r + Njac*c] = 0;
         for(int s = 0; s < Njac; ++s)
         {
-          k4_jac[r + Njac*c] += h*std::conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
+          k4_jac[r + Njac*c] += h*conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
         }
       }
     }
@@ -795,7 +808,9 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       working_scalar[r] += (k1_scalar[r] + 2.*k2_scalar[r] + 2.*k3_scalar[r] + k4_scalar[r])/6.;
       for (int c = 0; c < Njac; ++c)
       {
-        Jac[r + Njac*c] += (k1_jac[r + Njac*c] + 2.*k2_jac[r + Njac*c] + 2.*k3_jac[r + Njac*c] + k4_jac[r + Njac*c])/6.;
+        jac_element = Jac.get_element(r, c);
+        jac_element += (k1_jac[r + Njac*c] + 2.*k2_jac[r + Njac*c] + 2.*k3_jac[r + Njac*c] + k4_jac[r + Njac*c])/6.;
+        Jac.set_element(r, c, jac_element);
       }
     }
     //returning the flowed fields to the scalar fields object
@@ -807,16 +822,6 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
       }
     }
   }
-  //casting from our complex array to a GSL matrix
-  for(int r = 0; r < Njac; ++r)
-  {
-    for(int c = 0; c < Njac; ++c)
-    {
-      gsl_matrix_complex_set(mJ, r, c, gsl_complex_rect(std::real(Jac[r + c*Njac]), std::imag(Jac [r + c*Njac])));
-    }
-  }
-  gsl_linalg_complex_LU_decomp(mJ, p, &s);
-  det_gsl = gsl_linalg_complex_LU_det(mJ, s); //this actually calculates the determinant
   
   delete[] working_scalar;
   delete[] ajustment_scalar;
@@ -829,10 +834,8 @@ dcomp thimble_system::calc_jacobian(dcomp Jac[], bool proposal)
   delete[] k2_jac;
   delete[] k3_jac;
   delete[] k4_jac;
-  gsl_permutation_free(p);
-  gsl_matrix_complex_free(mJ);
 
-  return GSL_REAL(det_gsl) + j*GSL_IMAG(det_gsl);
+  return Jac;
 }
 
 dcomp thimble_system::calc_S(int field_type)
@@ -853,7 +856,7 @@ dcomp thimble_system::calc_S(int field_type)
     for (int k = 0; k < Ntot; ++k)
     {
       n = scalars[0].calc_n(k);
-      S += -1.*j*dx*(scalars[0].path[n] + scalars[0].path_offset[n])*interactions[i].base(k, this, field_type)/2.;
+      S += -1.*j*dx*(scalars[0].path[n] + scalars[0].path_offset[n])*interactions[i].base(k, *this, field_type)/2.;
     }
   }
   return S;
@@ -863,16 +866,9 @@ int thimble_system::update()
 {
   bool proposal = true;
   dcomp proposed_action, proposed_detJ;
-  double log_proposal;
+  mydouble log_proposal;
   dcomp* eta = new dcomp[Njac];
-  dcomp* Delta = new dcomp[Njac];
-  dcomp* proposed_J = new dcomp[NjacSquared];
-  dcomp* proposed_J_conj = new dcomp[NjacSquared];
-  dcomp* proposed_delta_J = new dcomp[Njac];
-  dcomp* delta_J = new dcomp[Njac];
-  dcomp* proposed_J_delta = new dcomp[Njac];
-  dcomp* J_delta = new dcomp[Njac];
-  double matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
+  mydouble matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
   int output = 0; //this is the return value
 
   for(int i = 0; i < Njac; ++i)
@@ -881,15 +877,12 @@ int thimble_system::update()
     eta[i] = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
   }
 
-  for(int c = 0; c < Njac; ++c)
+  //returning the proposal to the real manifold
+  matrix<dcomp> Delta = J.solve(eta);
+  for(int i = 0; i < Njac; ++i)
   {
-    Delta[c] = 0.;
-    for(int r = 0; r < Njac; ++r)
-    {
-      //matrix multiplication using the inverse of J to transport the vector eta from the complex manifold to the real
-      //this *is* right, the elements should be swapped like this. Don't "debug" that out while tired.
-      Delta[c] += std::real(invJ[c + Njac*r]*eta[r]);
-    }
+    //taking only the elements that fit in the reduced space
+    Delta.set_element(i, 0, real(Delta.get_element(i, 0)));
   }
 
   //creating new basefield condtions
@@ -897,59 +890,30 @@ int thimble_system::update()
   {
     for(int k = 0; k < Ntot; ++k)
     {
-      scalars[i].fields[3][k] = scalars[i].fields[2][k] + Delta[k + i*Ntot];
+      scalars[i].fields[3][k] = scalars[i].fields[2][k] + Delta.get_element(k + i*Ntot, 0);
     }
   }
-
+  
   //calculating the Jacobian, it's determinant, conjugate, and the action of the proposed field state
-  proposed_detJ = calc_jacobian(proposed_J, proposal);
+  matrix<dcomp> proposed_J = calc_jacobian(proposal);
+  matrix<dcomp> proposed_J_conj = proposed_J.conjugate();
   proposed_action = calc_S(1);
-  log_proposal = std::log(std::abs(proposed_detJ));
-  for (int r = 0; r < Njac; ++r)
-  {
-    for (int c = 0; c < Njac; ++c)
-    {
-      proposed_J_conj[r + Njac*c] = std::conj(proposed_J[c + Njac*r]);
-    }
-  }
+  log_proposal = (mydouble) log(abs(proposed_J.get_det()));
 
   //matrix multiplication required to calculate the accpetance exponenet
-  for(int r = 0; r < Njac; ++r)
-  {
-    proposed_delta_J[r] = 0;
-    delta_J[r] = 0;
-    proposed_J_delta[r] = 0;
-    J_delta[r] = 0;
-    for (int c = 0; c < Njac; ++c)
-    {
-      proposed_delta_J[r] += Delta[c]*proposed_J[c + r*Njac];
-      delta_J[r] += Delta[c]*J[c + r*Njac];
-      proposed_J_delta[r] += Delta[c]*proposed_J_conj[r + Njac*c];
-      J_delta[r] += Delta[c]*conj_J[r + Njac*c];
-    }
-  }
+  matrix<dcomp> Delta_transpose = Delta.transpose();
 
-  //calculating the matrix cross terms
-  matrix_exponenet = 0;
-  proposed_matrix_exponenet = 0;
-  for (int r = 0; r < Njac; ++r)
-  {
-    matrix_exponenet += std::real(delta_J[r]*J_delta[r]);
-    proposed_matrix_exponenet += std::real(proposed_delta_J[r]*proposed_J_delta[r]);
-  }
+  matrix_exponenet = (mydouble) real((Delta_transpose*J*J_conj*Delta).get_element(0, 0));
+  proposed_matrix_exponenet = (mydouble) real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
   //exponenet for the MC test
-  exponenet = std::real(S - proposed_action) + 2.*log_proposal - 2.*std::log(std::real(detJ)) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
+  exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(real(J.get_det()))) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
   check = gsl_rng_uniform(my_rngPointer);
-  if (std::exp(exponenet) > check)
+  if (exp(exponenet) > check)
   {
     //proposal was accepted, transfering all the proposed parameters to the storage
-    detJ = proposed_detJ;
     S = proposed_action;
-    for (int i = 0; i < NjacSquared; ++i)
-    {
-      J[i] = proposed_J[i];
-      conj_J[i] = proposed_J_conj[i];
-    } 
+    J = proposed_J;
+    J_conj = proposed_J_conj;
     //transfering over all the scalar fields
     for (int i = 0; i < scalars.size(); ++i)
     {
@@ -959,85 +923,33 @@ int thimble_system::update()
         scalars[i].fields[2][k] = scalars[i].fields[3][k];
       }
     }
-    //inverting the new jacobian
-    invert_jacobian(J, invJ);
     output = 1;
   }
   delete[] eta;
-  delete[] Delta;
-  delete[] proposed_J;
-  delete[] proposed_J_conj;
-  delete[] proposed_delta_J;
-  delete[] delta_J;
-  delete[] proposed_J_delta;
-  delete[] J_delta;
   return output;
-}
-
-void thimble_system::invert_jacobian(dcomp Jac[], dcomp invJac[])
-{
-  int s;
-  gsl_permutation* p = gsl_permutation_alloc(Njac);
-  gsl_matrix_complex* mJ = gsl_matrix_complex_alloc(Njac, Njac); //setting up GSL matricies
-  gsl_matrix_complex* invmJ = gsl_matrix_complex_alloc(Njac, Njac);
-
-  for (int r = 0; r < Njac; ++r)
-  {
-    for (int c = 0; c < Njac; ++c)
-    {
-      //assiginging to a GSL matrix structure
-      gsl_matrix_complex_set(mJ, r, c, gsl_complex_rect(std::real(J[r + Njac*c]), std::imag(J[r + Njac*c])));
-    }
-  }
-
-  gsl_linalg_complex_LU_decomp(mJ, p, &s); //splitting into triangle matrices
-  gsl_linalg_complex_LU_invert(mJ, p, invmJ); //inverting the new triangle matricies
-
-  for (int r = 0; r < Njac; ++r)
-  {
-    for (int c = 0; c < Njac; ++c)
-    {
-      //returning the GSL matrix to the linear representation
-      invJac[r + Njac*c] = GSL_REAL(gsl_matrix_complex_get(invmJ, r, c)) + j*GSL_IMAG(gsl_matrix_complex_get(invmJ, r, c));
-    }
-  }
-
-  gsl_permutation_free(p);
-  gsl_matrix_complex_free(mJ);
-  gsl_matrix_complex_free(invmJ); //freeing the GSL pointers
 }
 
 void thimble_system::simulate(int n_burn_in, int n_simulation)
 {
+  pre_simulation_check();
   Njac = scalars.size()*Ntot; //setting the size of the Jacobian "matricies"
   NjacSquared = pow(Njac, 2);
 
-  J = new dcomp[NjacSquared]; //setting up the arrays that hold the Jacobian matricies
-  invJ = new dcomp[NjacSquared];
-  conj_J = new dcomp[NjacSquared];
-  jac_defined = true; //this ensures the correct memory management happens
-
   dcomp* state_storage = new dcomp[(Njac + 2)*n_simulation]; //This stores the data between updates and will be saved to a file
   std::ofstream data_storage;
+  
 
   //initialising the fields
   for (int i = 0; i < scalars.size(); ++i)
   {
     scalars[i].initialise();
   }
-
-  detJ = calc_jacobian(J);
-  //calculating the conjugate of the jacobian
-  for (int r = 0; r < Njac; ++r)
-  {
-    for (int c = 0; c < Njac; ++c)
-    {
-      conj_J[r + Njac*c] = std::conj(J[c + Njac*r]);
-    }
-  }
+  J.resize(Njac, Njac);
+  J_conj.resize(Njac, Njac);
+  J = calc_jacobian();
+  J_conj = J.conjugate();
   S = calc_S(0);
-  invert_jacobian(J, invJ); //setup is now complete, the Jacobian, it's inverse, conjugate, and it's determinant have been calculated, and the scalars are primed.
-
+  //setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
   for (int i = 0; i < n_burn_in; ++i)
   {
     update();
@@ -1051,29 +963,32 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
     {
       for (int r = 0; r < Ntot; ++r)
       {
+        //writing each scalar into the array
         state_storage[i*(Njac + 2) + k*Ntot + r] = scalars[k].fields[0][r];
       }
     }
     state_storage[i*(Njac + 2) + scalars.size()*Ntot] = S;
-    state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = std::log(std::real(detJ)) +j*std::arg(detJ);
+    state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = log(real(J.get_det())) +j*arg(J.get_det());
+    //adding auxiliary parameters, action and the log determinant
   }
   acceptance_rate /= n_simulation;
 
   data_storage.open(rel_path + file_name);
+  //saving initial conditions, random seed, and simulation parameters
   data_storage << rng_seed << ",";
   for(int i = 0; i < scalars.size(); ++i)
   {
     for(int k = 0; k < Nx; ++k)
     {
-      data_storage << std::real(scalars[i].field_0[k]) << "," << std::imag(scalars[i].field_0[k]) << ",";
+      data_storage << real(scalars[i].field_0[k]) << "," << imag(scalars[i].field_0[k]) << ",";
     }
   }
-
+  //saving the data previously stored
   for (int i = 0; i < scalars.size(); ++i)
   {
     for (int k = 0; k < Nx; ++k)
     {
-      data_storage << std::real(scalars[i].field_1[k]) << "," << std::imag(scalars[i].field_1[k]) << ",";
+      data_storage << real(scalars[i].field_1[k]) << "," << imag(scalars[i].field_1[k]) << ",";
     }
   }
   data_storage << delta << "," << tau << "," << acceptance_rate << std::endl;
@@ -1081,26 +996,104 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   {
     for (int k = 0; k < Njac + 1; ++k)
     {
-      data_storage << std::real(state_storage[i*(Njac + 2) + k]) << "," << std::imag(state_storage[i*(Njac + 2) + k]) << ",";
+      //split the complex data into real and imaginary components
+      data_storage << real(state_storage[i*(Njac + 2) + k]) << "," << imag(state_storage[i*(Njac + 2) + k]) << ",";
     }
-    data_storage << std::real(state_storage[i*(Njac + 2) + Njac + 1]) << "," << std::imag(state_storage[i*(Njac + 2) + Njac + 1]) << std::endl;
+    data_storage << real(state_storage[i*(Njac + 2) + Njac + 1]) << "," << imag(state_storage[i*(Njac + 2) + Njac + 1]) << std::endl;
   }
   data_storage.close();
   delete[] state_storage;
 }
 
+void thimble_system::set_field_mass(int field_number, double new_mass)
+{
+  //external interface for the user to set a new mass for the field
+  scalars[field_number].set_mass(new_mass);
+}
+
+void thimble_system::set_dt(double new_dt)
+{
+  //external interface to let the user resize the lattice
+  for(uint i = 0; i < scalars.size(); ++i)
+  {
+    scalars[i].set_dt(new_dt);
+  }
+  dt = new_dt;
+}
+
+void thimble_system::set_occupation_number(int field_number, int new_occupation_number)
+{
+  //Allows the user to set a uniform occupation number for a field
+  scalars[field_number].set_occupation_number(new_occupation_number);
+}
+
+void thimble_system::set_occupation_number(int field_number, int new_occupation_number[])
+{
+  //Allows the user to set a non-uniform occupation number for a given field
+  scalars[field_number].set_occupation_number(new_occupation_number);
+}
+
+void thimble_system::set_occupation_number(int field_number, std::vector<int> new_occupation_number)
+{
+  //thin wrapper around the above function, allowing it to take either a native C style array or a more C++ style vector.
+  int* internal = new int[Nx];
+  for(int i = 0; i < Nx; ++i)
+  {
+    internal[i] = new_occupation_number[i];
+  }
+  scalars[field_number].set_occupation_number(internal);
+  delete[] internal;
+}
+
+void thimble_system::set_proposal_size(double new_delta)
+{
+  //Alows the user to specify the proposal step size for the simulation.
+  delta = new_delta;
+  sigma = delta/pow(2, 0.5);
+}
+
+void thimble_system::pre_simulation_check()
+{ //this checks all the masses are in the correct range for the simulation
+  std::vector<uint> test_failed;
+  double test_condition, new_dt, possible_new_dt;
+  new_dt = pow(10, 100);
+  for(uint i = 0; i < scalars.size(); ++i)
+  {
+    if(Nx == 1)
+    {
+      test_condition = scalars[i].m;
+    }
+    else
+    {
+      test_condition = sqrt(4*pow(pi, 2)/pow(dx,2) + scalars[i].squareMass);
+    }
+    if (test_condition > (2/dt))
+    {
+      test_failed.push_back(i);
+      possible_new_dt = 2./test_condition;
+      if(new_dt > possible_new_dt)
+      {
+        new_dt = possible_new_dt; 
+      }
+    }
+  }
+
+  if(test_failed.size() != 0)
+  {
+    int number_of_new_sites = int(ceil((dt/new_dt)*Nt));
+    printf("Resolution insufficient for the mass scales involved. The following fields have too high mass: \n");
+    for(uint i = 0; i < test_failed.size(); ++i)
+    {
+      printf("Scalar field %i \n", test_failed[i]);
+    }
+    printf("This can be solved by reducing the temporal link size to at least %f. Doing this will require at least %i time sites to maintain the existing range. \n", new_dt, number_of_new_sites);
+    exit(11);
+  }
+}
+
 void thimble_system::test()
 {
-  simulate(0, 100);
-  //printf("number of ode steps = %i \n", number_of_timesteps);
-  /*
-  dcomp* jac = new dcomp[NjacSquared];
-  dcomp det;
+  add_scalar_field(1.);
   scalars[0].initialise();
-  for(int i = 0; i < 100; ++i)
-  {
-    det = calc_jacobian(jac);
-  }
-  delete[] jac;
-  */
+  matrix<dcomp> Jac = calc_jacobian();
 }
