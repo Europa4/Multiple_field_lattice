@@ -1021,6 +1021,16 @@ void thimble_system::set_dt(double new_dt)
   dt = new_dt;
 }
 
+void thimble_system::set_dx(double new_dx)
+{
+  //external interface to let the user resize the lattice (space direction this time)
+  for(uint i = 0; i < scalars.size(); ++i)
+  {
+    scalars[i].set_dx(new_dx);
+  }
+  dx = new_dx;
+}
+
 void thimble_system::set_occupation_number(int field_number, int new_occupation_number)
 {
   //Allows the user to set a uniform occupation number for a field
@@ -1054,18 +1064,21 @@ void thimble_system::set_proposal_size(double new_delta)
 
 void thimble_system::pre_simulation_check()
 { //this checks all the masses are in the correct range for the simulation
-  std::vector<uint> test_failed;
+
+  std::vector<uint> test_failed; //vector of all fields that failed the check
   double test_condition, new_dt, possible_new_dt;
-  new_dt = pow(10, 100);
+  new_dt = pow(10, 100); //stupidly large number to start with
   for(uint i = 0; i < scalars.size(); ++i)
   {
     if(Nx == 1)
     {
       test_condition = scalars[i].m;
+      //this takes into account that if it's a 1D simulation, the momentum plays no role
     }
     else
     {
       test_condition = sqrt(4*pow(pi, 2)/pow(dx,2) + scalars[i].squareMass);
+      //this is the condition where the momentum does have a role, the first term is the maximum lattice momentum
     }
     if (test_condition > (2/dt))
     {

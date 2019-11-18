@@ -171,6 +171,7 @@ class thimble_system
     dcomp calc_S(int field_type = 0);
     void set_field_mass(int field_number, double new_mass);
     void set_dt(double new_dt);
+    void set_dx(double new_dx);
     void set_occupation_number(int field_number, int new_occupation_number);
     void set_occupation_number(int field_number, int new_occupation_number[]);
     void set_occupation_number(int field_number, std::vector<int> new_occupation_number);

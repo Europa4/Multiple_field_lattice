@@ -34,26 +34,28 @@ def observable(phi_data, header):
     return classical_classical_correlator
 
 
-n_files = 200
+n_files = 45
 jackknife_block_length = 250
-expectation_observable = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
-file_error = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
+expectation_observable_phi = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
+expectation_observable_chi = np.copy(expectation_observable_phi)
+file_error_phi = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
+file_error_chi = np.copy(file_error_phi)
 x_range = np.arange(prot.Nt) + 1
 for n in np.arange(n_files):
     #data location
-    file_name = 'Delta_0-1500/phi_' + str(n)
+    file_name = 'Data_Matrix/phi_' + str(n)
     #This is all just using pandas to load the CSV files, it's completely compatable with the outputs from the C++ code
     #It outputs it as a triplet of numpy arrays, header, aux_data and phi_data
     data = pd.read_csv(file_name, header = None, skiprows = 1)
     header = np.array(np.array(pd.read_csv(file_name, sep='\s+').keys())[0].split(','), dtype = float)
     data = np.array(data)
-    aux_data = data[:, 2*prot.Nrp:]
-    phi_data = data[:, :2*prot.Nrp]
+    aux_data = data[:, 64:]
+    phi_data = data[:, :64]
     #This gets it from the CSV state of "real, imag, real, imag" to "real + i*imag, real + i*imag"
     temp = np.reshape(phi_data, (phi_data.shape[0], int(phi_data.shape[1]/2), 2))
     phi_data = temp[:, :, 0] + prot.j*temp[:, :, 1]
-    chi_data = phi_data[:, prot.Ntot:]
-    phi_data = phi_data[:, :prot.Ntot]
+    chi_data = phi_data[:, prot.Nrt:]
+    phi_data = phi_data[:, :prot.Nrt]
     number_of_iterations = phi_data.shape[0]
     
     #equation 26 in arxiv 1704.06404, |det J(0)| is ingored as it'll cancel between the numerator and the denominator
@@ -65,30 +67,47 @@ for n in np.arange(n_files):
     for i in np.arange(int(number_of_iterations)):
         Obs = observable(phi_data[i, :], header)
         numerator_phi[i, :, :] = Obs*phi_tilde[i] #this is the unaveraged numerator
-        Obs = observable(chi_data[i, :])
+        Obs = observable(chi_data[i, :], header)
+        numerator_chi[i, :, :] = Obs*phi_tilde[i]
     #This calculates the expression fully for one initiatlisation
-    expectation_observable[n, :, :] = np.mean(numerator_phi, axis = 0)/denominator
+    expectation_observable_phi[n, :, :] = np.mean(numerator_phi, axis = 0)/denominator
+    expectation_observable_chi[n, :, :] = np.mean(numerator_chi, axis = 0)/denominator
     
     #error analysis for this file
     for i in np.arange(prot.Nt):
         for j in np.arange(prot.Nt):
-            file_error[n, i, j] = jackknife(np.real(numerator_phi[:, i, j]/denominator), jackknife_block_length) + prot.j*jackknife(np.imag(numerator_phi[:, i, j]/denominator), jackknife_block_length)
+            file_error_phi[n, i, j] = jackknife(np.real(numerator_phi[:, i, j]/denominator), jackknife_block_length) + prot.j*jackknife(np.imag(numerator_phi[:, i, j]/denominator), jackknife_block_length)
+            file_error_chi[n, i, j] = jackknife(np.real(numerator_chi[:, i, j]/denominator), jackknife_block_length) + prot.j*jackknife(np.imag(numerator_chi[:, i, j]/denominator), jackknife_block_length)
 
 #this now combines all the initialisations
-final_expectation = np.mean(expectation_observable, axis = 0)
+final_expectation_phi = np.mean(expectation_observable_phi, axis = 0)
+final_expectation_chi = np.mean(expectation_observable_chi, axis = 0)
 
-final_error = np.sqrt(np.sum(np.real(file_error)**2, axis = 0) + prot.j*np.sum(np.imag(file_error)**2, axis = 0))/np.sqrt(n_files)
+final_error_phi = np.sqrt(np.sum(np.real(file_error_phi)**2, axis = 0) + prot.j*np.sum(np.imag(file_error_phi)**2, axis = 0))/np.sqrt(n_files)
+final_error_chi = np.sqrt(np.sum(np.real(file_error_chi)**2, axis = 0) + prot.j*np.sum(np.imag(file_error_chi)**2, axis = 0))/np.sqrt(n_files)
 
 #plotting, whatever is suitable for your observable
 for i in np.arange(prot.Nt):
     plt.figure(i)
-    plt.errorbar(x_range, np.real(final_expectation[:, i]).flatten(), yerr = np.real(final_error[:, i]), label = "real", fmt = '', linestyle = 'None', marker = 'o', capsize = 5)
-    plt.errorbar(x_range, np.imag(final_expectation[:, i]).flatten(), yerr = np.imag(final_error[:, i]), label = "imag", fmt = '', linestyle = 'None', marker = 'o', capsize = 5)
+    plt.errorbar(x_range, np.real(final_expectation_phi[:, i]).flatten(), yerr = np.real(final_error_phi[:, i]), label = "real", fmt = '', linestyle = 'None', marker = 'o', capsize = 5)
+    plt.errorbar(x_range, np.imag(final_expectation_phi[:, i]).flatten(), yerr = np.imag(final_error_phi[:, i]), label = "imag", fmt = '', linestyle = 'None', marker = 'o', capsize = 5)
     plt.axhline(0,color='black',linewidth = 0.5)
     plt.title('Classical Correlator i = ' + str(x_range[i]))
     plt.xlabel('j')
     plt.ylabel(r'$\langle \phi^{cl}_j \phi^{cl}_i \rangle$')
     plt.legend()
     plt.plot()
-    plt.savefig('classical_'+str(i))
+    plt.savefig('Data_Matrix/classical_phi_'+str(i))
+    
+for i in np.arange(prot.Nt):
+    plt.figure(i + prot.Nt)
+    plt.errorbar(x_range, np.real(final_expectation_chi[:, i]).flatten(), yerr = np.real(final_error_chi[:, i]), label = "real", fmt = '', linestyle = 'None', marker = 'o', capsize = 5)
+    plt.errorbar(x_range, np.imag(final_expectation_chi[:, i]).flatten(), yerr = np.imag(final_error_chi[:, i]), label = "imag", fmt = '', linestyle = 'None', marker = 'o', capsize = 5)
+    plt.axhline(0,color='black',linewidth = 0.5)
+    plt.title('Classical Correlator i = ' + str(x_range[i]))
+    plt.xlabel('j')
+    plt.ylabel(r'$\langle \chi^{cl}_j \chi^{cl}_i \rangle$')
+    plt.legend()
+    plt.plot()
+    plt.savefig('Data_Matrix/classical_chi_'+str(i))
 

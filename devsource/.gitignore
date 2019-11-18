@@ -2,4 +2,6 @@
 *.o
 evolve_exec
 Data
-Data_matrix
+Data_Matrix
+Data_1_1
+__pycache__
