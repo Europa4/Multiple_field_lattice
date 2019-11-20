@@ -34,7 +34,7 @@ def observable(phi_data, header):
     return classical_classical_correlator
 
 
-n_files = 45
+n_files = 8
 jackknife_block_length = 250
 expectation_observable_phi = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
 expectation_observable_chi = np.copy(expectation_observable_phi)
@@ -43,7 +43,7 @@ file_error_chi = np.copy(file_error_phi)
 x_range = np.arange(prot.Nt) + 1
 for n in np.arange(n_files):
     #data location
-    file_name = 'Data_Matrix/phi_' + str(n)
+    file_name = 'Data_site_test/phi_' + str(n)
     #This is all just using pandas to load the CSV files, it's completely compatable with the outputs from the C++ code
     #It outputs it as a triplet of numpy arrays, header, aux_data and phi_data
     data = pd.read_csv(file_name, header = None, skiprows = 1)
@@ -97,7 +97,7 @@ for i in np.arange(prot.Nt):
     plt.ylabel(r'$\langle \phi^{cl}_j \phi^{cl}_i \rangle$')
     plt.legend()
     plt.plot()
-    plt.savefig('Data_Matrix/classical_phi_'+str(i))
+    plt.savefig('Data_site_test/classical_phi_'+str(i))
     
 for i in np.arange(prot.Nt):
     plt.figure(i + prot.Nt)
@@ -109,5 +109,5 @@ for i in np.arange(prot.Nt):
     plt.ylabel(r'$\langle \chi^{cl}_j \chi^{cl}_i \rangle$')
     plt.legend()
     plt.plot()
-    plt.savefig('Data_Matrix/classical_chi_'+str(i))
+    plt.savefig('Data_site_test/classical_chi_'+str(i))
 

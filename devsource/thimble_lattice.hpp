@@ -154,6 +154,8 @@ class thimble_system
     field_id_return calc_field(int master_site);
     void sync_ajustment(dcomp ajustment[]);
     int update();
+    matrix<dcomp> sweep_proposal();
+    matrix<dcomp> site_proposal();
     void pre_simulation_check();
     
 

@@ -304,7 +304,8 @@ void scalar_field::initialise()
 
   for (int i = 0; i < Nx; ++i)
 	{
-    p = i*2.*pi/(Nx*dx);
+    //p = i*2.*pi/(Nx*dx);
+    p = 2.*(1. - cos(i*2.*pi/(dx*Nx)))/pow(dx, 2);
     omega_p = pow(pow(p,2) + pow(m,2),0.5);
     omega_tilde = acos(1 - pow(omega_p*dt,2)/2)/dt;
     Omega_p = sin(omega_p*dt)/dt; //configuring variables for this momentum
@@ -320,7 +321,6 @@ void scalar_field::initialise()
         field_0[i] += ((a[i] + j*b[i])*pow(e,j*p*(i*dx))/pow(2*Omega_p,0.5) + (c[i] - j*b[i])*pow(e,-1.*j*p*(i*dx))/pow(2*Omega_p,0.5))*pow(occupation_number[i] + 0.5,0.5);
         field_1[i] += pow(e,j*p*(i*dx))*(a[i]*cos(omega_tilde*dt) + c[i]*Omega_p*dt)*pow(occupation_number[i] + 0.5,0.5)/pow(Omega_p,0.5);
     }
-
     field_0[i] = field_0[i]/V; //rescaling for the volume. hbar is taken to be one.
     field_1[i] = field_1[i]/V;
 
@@ -402,6 +402,8 @@ void scalar_field::initialise()
     C[1][(i + 1)*Nrpath - 1] *= -1.;
     C[2][i*Nrpath] *= -1.;
   }
+
+
 }
 
 dcomp scalar_field::free_action(int site, int field_type)
@@ -867,23 +869,10 @@ int thimble_system::update()
   bool proposal = true;
   dcomp proposed_action, proposed_detJ;
   mydouble log_proposal;
-  dcomp* eta = new dcomp[Njac];
   mydouble matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
   int output = 0; //this is the return value
 
-  for(int i = 0; i < Njac; ++i)
-  {
-    //setting up the proposal on the complex manifold
-    eta[i] = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
-  }
-
-  //returning the proposal to the real manifold
-  matrix<dcomp> Delta = J.solve(eta);
-  for(int i = 0; i < Njac; ++i)
-  {
-    //taking only the elements that fit in the reduced space
-    Delta.set_element(i, 0, real(Delta.get_element(i, 0)));
-  }
+  matrix<dcomp> Delta = sweep_proposal();
 
   //creating new basefield condtions
   for(int i = 0; i < scalars.size(); ++i)
@@ -925,8 +914,45 @@ int thimble_system::update()
     }
     output = 1;
   }
-  delete[] eta;
   return output;
+}
+
+matrix<dcomp> thimble_system::sweep_proposal()
+{
+  //this function generates a proposal vector Delta, based on sweep updating, such that the entire lattice is updated by roughly the same amount.
+  dcomp* eta = new dcomp[Njac];
+  for(int i = 0; i < Njac; ++i)
+  {
+    //setting up the proposal on the complex manifold
+    eta[i] = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
+  }
+
+  //returning the proposal to the real manifold
+  matrix<dcomp> Delta = J.solve(eta);
+  for(int i = 0; i < Njac; ++i)
+  {
+    //taking only the elements that fit in the reduced space
+    Delta.set_element(i, 0, real(Delta.get_element(i, 0)));
+  }
+  delete[] eta;
+
+  return Delta;
+}
+
+matrix<dcomp> thimble_system::site_proposal()
+{
+  int target_site = gsl_rng_uniform_int(my_rngPointer, (uint) Ntot);
+  dcomp proposal = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
+  dcomp* eta = new dcomp[Ntot];
+  for (int i = 0; i < Ntot; ++i)
+  {
+    eta[i] = 0;
+  }
+  eta[target_site] = proposal;
+  matrix<dcomp> Delta = J.solve(eta);
+
+  delete[] eta;
+  return Delta;
 }
 
 void thimble_system::simulate(int n_burn_in, int n_simulation)
@@ -1077,7 +1103,7 @@ void thimble_system::pre_simulation_check()
     }
     else
     {
-      test_condition = sqrt(4*pow(pi, 2)/pow(dx,2) + scalars[i].squareMass);
+      test_condition = sqrt(4/pow(dx,2) + scalars[i].squareMass);
       //this is the condition where the momentum does have a role, the first term is the maximum lattice momentum
     }
     if (test_condition > (2/dt))
