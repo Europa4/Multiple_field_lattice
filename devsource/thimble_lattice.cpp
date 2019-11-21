@@ -286,16 +286,16 @@ void scalar_field::set_mass(double new_mass)
 void scalar_field::initialise()
 {
     //this is called *after* the constructor, because we need to specify the mass
-  double a[Nx], b[Nx], c[Nx], d[Nx];
+  std::vector<double> a, b, c, d;
   double p, omega_p, omega_tilde, Omega_p, V;
 
   
   for (int i = 0; i < Nx; ++i)
   {
-    a[i] = gsl_ran_gaussian(my_rngPointer, 1); //Yeah naming a variable a, b, c, d isn't helpful, but it's what we call them in the maths. Besides, they're local to this function.
-    b[i] = gsl_ran_gaussian(my_rngPointer, 1);
-    c[i] = gsl_ran_gaussian(my_rngPointer, 1);
-    d[i] = gsl_ran_gaussian(my_rngPointer, 1);
+    a.push_back(gsl_ran_gaussian(my_rngPointer, 1)); //Yeah naming a variable a, b, c, d isn't helpful, but it's what we call them in the maths. Besides, they're local to this function.
+    b.push_back(gsl_ran_gaussian(my_rngPointer, 1)); 
+    c.push_back(gsl_ran_gaussian(my_rngPointer, 1)); 
+    d.push_back(gsl_ran_gaussian(my_rngPointer, 1)); 
     field_0[i] = 0;
     field_1[i] = 0;
   } //random number arrays for Mou's initial conditions, and the initial states of the phi field
@@ -305,21 +305,24 @@ void scalar_field::initialise()
   for (int i = 0; i < Nx; ++i)
 	{
     //p = i*2.*pi/(Nx*dx);
-    p = 2.*(1. - cos(i*2.*pi/(dx*Nx)))/pow(dx, 2);
-    omega_p = pow(pow(p,2) + pow(m,2),0.5);
-    omega_tilde = acos(1 - pow(omega_p*dt,2)/2)/dt;
-    Omega_p = sin(omega_p*dt)/dt; //configuring variables for this momentum
-    if ((Nx - i)%Nx == 0)
+    for(uint q = 0; q < Nx; ++q)
     {
-        //corner mode case
-        field_0[i] += a[i]*pow(e,j*p*(i*dx))*pow(occupation_number[i] + 0.5,0.5)/pow(Omega_p,0.5);
-        field_1[i] += pow(e,j*p*(i*dx))*(a[i]*cos(omega_tilde*dt) + c[i]*Omega_p*dt)*pow(occupation_number[i] + 0.5,0.5)/pow(Omega_p,0.5);
-    }
-    else
-    {
-        //bulk mode case
-        field_0[i] += ((a[i] + j*b[i])*pow(e,j*p*(i*dx))/pow(2*Omega_p,0.5) + (c[i] - j*b[i])*pow(e,-1.*j*p*(i*dx))/pow(2*Omega_p,0.5))*pow(occupation_number[i] + 0.5,0.5);
-        field_1[i] += pow(e,j*p*(i*dx))*(a[i]*cos(omega_tilde*dt) + c[i]*Omega_p*dt)*pow(occupation_number[i] + 0.5,0.5)/pow(Omega_p,0.5);
+      p = pow(2.*(1. - cos(q*2.*pi/(dx*Nx)))/pow(dx, 2), 0.5);
+      omega_p = pow(pow(p,2) + pow(m,2),0.5);
+      omega_tilde = acos(1 - pow(omega_p*dt,2)/2)/dt;
+      Omega_p = sin(omega_p*dt)/dt; //configuring variables for this momentum
+      if ((Nx - q)%Nx == 0)
+      {
+          //corner mode case
+          field_0[i] += a[q]*pow(e,j*p*(i*dx))*pow(occupation_number[q] + 0.5,0.5)/pow(Omega_p,0.5);
+          field_1[i] += pow(e,j*p*(i*dx))*(a[q]*cos(omega_tilde*dt) + c[q]*Omega_p*dt)*pow(occupation_number[q] + 0.5,0.5)/pow(Omega_p,0.5);
+      }
+      else
+      {
+          //bulk mode case
+          field_0[i] += ((a[q] + j*b[q])*pow(e,j*p*(i*dx))/pow(2*Omega_p,0.5) + (c[q] - j*b[q])*pow(e,-1.*j*p*(i*dx))/pow(2*Omega_p,0.5))*pow(occupation_number[q] + 0.5,0.5);
+          field_1[i] += pow(e,j*p*(i*dx))*(a[q]*cos(omega_tilde*dt) + c[q]*Omega_p*dt)*pow(occupation_number[q] + 0.5,0.5)/pow(Omega_p,0.5);
+      }
     }
     field_0[i] = field_0[i]/V; //rescaling for the volume. hbar is taken to be one.
     field_1[i] = field_1[i]/V;
@@ -342,7 +345,6 @@ void scalar_field::initialise()
       {
         fields[2][Nrpath*(k + 1) - i - 1] = fields[2][Nrpath*k + i + 1]; //sets up the return leg of the contour
       }
-
   }
 
   //clearing the classical data from the first site, note the initial condition data is saved in field_0 and field_1

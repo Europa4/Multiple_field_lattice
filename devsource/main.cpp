@@ -44,10 +44,10 @@ int main(int argc, char **argv)
     //sys.add_interaction(1./24, powers);
     sys.set_path("Data_1_1/");
     sys.set_name("phi_" + std::to_string(i*world_size + world_rank + start_record));
-    sys.set_dt(0.45);
+    sys.set_dt(0.5);
     sys.set_dx(0.75);
     sys.set_proposal_size(0.2);
-    sys.simulate(pow(10, 3), pow(10, 3));
+    sys.simulate(pow(10, 3), pow(10, 5));
     printf("simulation %i completed \n", i*world_size + world_rank + start_record);
   }
   
