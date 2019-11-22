@@ -79,7 +79,7 @@ dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble
 }
 
 //scalar field class to be incorporated into a system class (class composition)*******************************************************
-scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer, double system_dt, double system_dx) : occupation_number(new int[x_dim]),
+scalar_field::scalar_field(int x_dim, int t_dim, double system_dt, double system_dx) : occupation_number(new int[x_dim]),
   Nx(x_dim), //member initialiser list 
   Nt(t_dim), 
   Npath(2*Nt), 
@@ -99,7 +99,6 @@ scalar_field::scalar_field(int x_dim, int t_dim, gsl_rng * rngPointer, double sy
   positive_space_site(new int[Ntot]),
   negative_time_site(new int[Ntot]),
   negative_space_site(new int[Ntot]),
-  my_rngPointer(rngPointer),
   j(0,1)
 {
   //class constructor
@@ -218,7 +217,6 @@ positive_time_site(new int[obj.Ntot]),
 positive_space_site(new int[obj.Ntot]),
 negative_time_site(new int[obj.Ntot]),
 negative_space_site(new int[obj.Ntot]),
-my_rngPointer(obj.my_rngPointer),
 j(obj.j)
 {
   for (int i = 0; i < 5; ++i)
@@ -283,19 +281,14 @@ void scalar_field::set_mass(double new_mass)
   squareMass = pow(new_mass,2);
 }
 
-void scalar_field::initialise()
+void scalar_field::initialise(double a[], double b[], double c[], double d[])
 {
-    //this is called *after* the constructor, because we need to specify the mass
-  std::vector<double> a, b, c, d;
+  //this is called *after* the constructor, because we need to specify the mass
   double p, omega_p, omega_tilde, Omega_p, V;
 
   
   for (int i = 0; i < Nx; ++i)
   {
-    a.push_back(gsl_ran_gaussian(my_rngPointer, 1)); //Yeah naming a variable a, b, c, d isn't helpful, but it's what we call them in the maths. Besides, they're local to this function.
-    b.push_back(gsl_ran_gaussian(my_rngPointer, 1)); 
-    c.push_back(gsl_ran_gaussian(my_rngPointer, 1)); 
-    d.push_back(gsl_ran_gaussian(my_rngPointer, 1)); 
     field_0[i] = 0;
     field_1[i] = 0;
   } //random number arrays for Mou's initial conditions, and the initial states of the phi field
@@ -526,15 +519,11 @@ j(0,1),
 dx(1.),
 dt(0.75),
 sigma(0.07071067812),
-delta(0.1)
-{
-  //thimble system constructor
-  const gsl_rng_type * T;
-  gsl_rng_env_setup();
-  T = gsl_rng_default;
-  my_rngPointer = gsl_rng_alloc (T);
-  gsl_rng_set(my_rngPointer, seed);
-  
+delta(0.1),
+generator(rng_seed),
+uniform_double(0, 1),
+abcd(0, 1)
+{ 
   //determining the number of timesteps for the ODE solvers from the flow time  
   h = 0.02; //sets the base size 
   number_of_timesteps = int(ceil(tau/h)); //calculates how many steps this corresponds to (overshooting in the case of it not being exact)
@@ -543,16 +532,16 @@ delta(0.1)
 
 thimble_system::~thimble_system()
 {
-  gsl_rng_free(my_rngPointer);
+
 }
 void thimble_system::add_scalar_field()
 {
-  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer, dt, dx));
+  scalars.emplace_back(scalar_field(Nx, Nt, dt, dx));
 }
 
 void thimble_system::add_scalar_field(double mass)
 {
-  scalars.emplace_back(scalar_field(Nx, Nt, my_rngPointer, dt , dx));
+  scalars.emplace_back(scalar_field(Nx, Nt, dt , dx));
   scalars[scalars.size() - 1].set_mass(mass);
 }
 
@@ -898,7 +887,7 @@ int thimble_system::update()
   proposed_matrix_exponenet = (mydouble) real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
   //exponenet for the MC test
   exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(real(J.get_det()))) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
-  check = gsl_rng_uniform(my_rngPointer);
+  check = uniform_double(generator);
   if (exp(exponenet) > check)
   {
     //proposal was accepted, transfering all the proposed parameters to the storage
@@ -926,7 +915,7 @@ matrix<dcomp> thimble_system::sweep_proposal()
   for(int i = 0; i < Njac; ++i)
   {
     //setting up the proposal on the complex manifold
-    eta[i] = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
+    eta[i] = gaussian(generator) + j*gaussian(generator);
   }
 
   //returning the proposal to the real manifold
@@ -943,8 +932,8 @@ matrix<dcomp> thimble_system::sweep_proposal()
 
 matrix<dcomp> thimble_system::site_proposal()
 {
-  int target_site = gsl_rng_uniform_int(my_rngPointer, (uint) Ntot);
-  dcomp proposal = gsl_ran_gaussian(my_rngPointer, sigma) + j*gsl_ran_gaussian(my_rngPointer, sigma);
+  int target_site = uniform_int(generator);
+  dcomp proposal = gaussian(generator) + j*gaussian(generator);
   dcomp* eta = new dcomp[Ntot];
   for (int i = 0; i < Ntot; ++i)
   {
@@ -962,14 +951,35 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   pre_simulation_check();
   Njac = scalars.size()*Ntot; //setting the size of the Jacobian "matricies"
   NjacSquared = pow(Njac, 2);
+  Nsys = Ntot*scalars.size(); //total number of sites in the system
+
+  std::normal_distribution<double> redo(0, sigma);
+  //this resets the gaussian distirbution to use the new sigma
+  gaussian = redo;
+  
+  std::uniform_int_distribution<int> redo_2(0, Nsys);
+  //this resets the site selection system, informing it of the existence of all the fields
+  uniform_int = redo_2;
 
   dcomp* state_storage = new dcomp[(Njac + 2)*n_simulation]; //This stores the data between updates and will be saved to a file
   std::ofstream data_storage;
 
+  double *a = new double[Nx];
+  double *b = new double[Nx];
+  double *c = new double[Nx];
+  double *d = new double[Nx];
+
   //initialising the fields
   for (int i = 0; i < scalars.size(); ++i)
   {
-    scalars[i].initialise();
+    for (int k = 0; k < Nx; ++k)
+    {
+      a[k] = abcd(generator);
+      b[k] = abcd(generator);
+      c[k] = abcd(generator);
+      d[k] = abcd(generator);
+    }
+    scalars[i].initialise(a, b, c, d);
   }
   J.resize(Njac, Njac);
   J_conj.resize(Njac, Njac);
@@ -1030,6 +1040,10 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   }
   data_storage.close();
   delete[] state_storage;
+  delete[] a;
+  delete[] b;
+  delete[] c;
+  delete[] d;
 }
 
 void thimble_system::set_field_mass(int field_number, double new_mass)
@@ -1133,7 +1147,26 @@ void thimble_system::pre_simulation_check()
 
 void thimble_system::test()
 {
-  add_scalar_field(1.);
-  scalars[0].initialise();
-  matrix<dcomp> Jac = calc_jacobian();
+  std::mt19937_64 l_generator(5);
+  std::normal_distribution<double> g_1(0, 10), g_2(0, 1);
+
+  printf("generating values from g_1 (large) \n");
+  for (int i = 0; i < 5; ++i)
+  {
+    std::cout << g_1(l_generator) << "\n";
+  }
+
+  printf("generating values from g_2 (small) \n");
+  for (int i = 0; i < 5; ++i)
+  {
+    std::cout << g_2(l_generator) << "\n";
+  }
+
+  g_2 = g_1;
+
+  printf("generating values from g_2 again, having assigned g_1 to it \n");
+  for (int i = 0; i < 5; ++i)
+  {
+    std::cout << g_2(l_generator) << "\n";
+  }
 }
