@@ -313,15 +313,15 @@ void scalar_field::initialise()
       Omega_p = sin(omega_p*dt)/dt; //configuring variables for this momentum
       if ((Nx - q)%Nx == 0)
       {
-          //corner mode case
-          field_0[i] += a[q]*pow(e,j*p*(i*dx))*pow(occupation_number[q] + 0.5,0.5)/pow(Omega_p,0.5);
-          field_1[i] += pow(e,j*p*(i*dx))*(a[q]*cos(omega_tilde*dt) + c[q]*Omega_p*dt)*pow(occupation_number[q] + 0.5,0.5)/pow(Omega_p,0.5);
+        //corner mode case
+        field_0[i] += a[q]*pow(e,j*p*(i*dx))*pow(occupation_number[q] + 0.5,0.5)/pow(Omega_p,0.5);
+        field_1[i] += pow(e,j*p*(i*dx))*(a[q]*cos(omega_tilde*dt) + c[q]*Omega_p*dt)*pow(occupation_number[q] + 0.5,0.5)/pow(Omega_p,0.5);
       }
       else
       {
-          //bulk mode case
-          field_0[i] += ((a[q] + j*b[q])*pow(e,j*p*(i*dx))/pow(2*Omega_p,0.5) + (c[q] - j*b[q])*pow(e,-1.*j*p*(i*dx))/pow(2*Omega_p,0.5))*pow(occupation_number[q] + 0.5,0.5);
-          field_1[i] += pow(e,j*p*(i*dx))*(a[q]*cos(omega_tilde*dt) + c[q]*Omega_p*dt)*pow(occupation_number[q] + 0.5,0.5)/pow(Omega_p,0.5);
+        //bulk mode case
+        field_0[i] += ((a[q] + j*b[q])*pow(e,j*p*(i*dx))/pow(2*Omega_p,0.5) + (a[q] - j*b[q])*pow(e,-1.*j*p*(i*dx))/pow(2*Omega_p,0.5))*pow(occupation_number[q] + 0.5,0.5);
+        field_1[i] += pow(e, j*p*(i*dx))*((a[q] + j*b[q])*cos(omega_tilde*dt) + (c[q] + j*d[q])*Omega_p*dt)*pow(occupation_number[q] + 0.5, 0.5)/pow(2*Omega_p, 2) + conj(pow(e, j*p*(i*dx))*((a[q] + j*b[q])*cos(omega_tilde*dt) + (c[q] + j*d[q])*Omega_p*dt)*pow(occupation_number[q] + 0.5, 0.5)/pow(2*Omega_p, 2));
       }
     }
     field_0[i] = field_0[i]/V; //rescaling for the volume. hbar is taken to be one.
@@ -873,8 +873,8 @@ int thimble_system::update()
   mydouble log_proposal;
   mydouble matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
   int output = 0; //this is the return value
-
-  matrix<dcomp> Delta = sweep_proposal();
+  
+  matrix<dcomp> Delta = site_proposal();
 
   //creating new basefield condtions
   for(int i = 0; i < scalars.size(); ++i)
@@ -965,7 +965,6 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
 
   dcomp* state_storage = new dcomp[(Njac + 2)*n_simulation]; //This stores the data between updates and will be saved to a file
   std::ofstream data_storage;
-  
 
   //initialising the fields
   for (int i = 0; i < scalars.size(); ++i)
