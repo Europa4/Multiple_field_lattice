@@ -972,7 +972,11 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   //initialising the fields
   for (int i = 0; i < scalars.size(); ++i)
   {
+<<<<<<< HEAD
     for (int k = 0; k < Nx; ++k)
+=======
+    for (int k = 0; k < Ntot; ++k)
+>>>>>>> master
     {
       a[k] = abcd(generator);
       b[k] = abcd(generator);
