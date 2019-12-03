@@ -79,7 +79,7 @@ dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble
 }
 
 //scalar field class to be incorporated into a system class (class composition)*******************************************************
-scalar_field::scalar_field(int x_dim, int t_dim, double system_dt, double system_dx) : occupation_number(new int[x_dim]),
+scalar_field::scalar_field(int x_dim, int t_dim, double system_dt, double system_dx, thimble_system* current_host) : occupation_number(new int[x_dim]),
   Nx(x_dim), //member initialiser list 
   Nt(t_dim), 
   Npath(2*Nt), 
@@ -99,7 +99,8 @@ scalar_field::scalar_field(int x_dim, int t_dim, double system_dt, double system
   positive_space_site(new int[Ntot]),
   negative_time_site(new int[Ntot]),
   negative_space_site(new int[Ntot]),
-  j(0,1)
+  j(0,1),
+  host(current_host)
 {
   //class constructor
   fields[0] = new dcomp[Ntot]; //configuring the lattice arrays
@@ -217,7 +218,8 @@ positive_time_site(new int[obj.Ntot]),
 positive_space_site(new int[obj.Ntot]),
 negative_time_site(new int[obj.Ntot]),
 negative_space_site(new int[obj.Ntot]),
-j(obj.j)
+j(obj.j),
+host(obj.host)
 {
   for (int i = 0; i < 5; ++i)
   {
@@ -406,7 +408,7 @@ dcomp scalar_field::free_action(int site, int field_type)
   //Standard P^2 - m^2 action
   dcomp S = 0;
   int n = calc_n(site);
-  if(n != Nrpath - 1)
+  if(n != host->Nrpath - 1)
   {
     S = -1.*(C[1][site]/2.)*pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2)
       - pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2)) + squareMass*pow(fields[field_type][site], 2)/2.)
@@ -447,57 +449,16 @@ void scalar_field::set_dt(double new_dt)
   dt = new_dt;
 }
 
-dcomp scalar_field::edge_effects(int site, int field_type)
-{
-  dcomp effect = 0;
-  int n = calc_n(site);
-  int x = calc_x(site);
-  if (n == 0)
-  {
-    effect = 2.*field_2[x]/dt;
-  }
-  else if (n == 1)
-  {
-    effect = -1.*field_1[x]/dt;
-  }
-  else if (n == Nrpath - 1)
-  {
-    effect = 1.*field_1[x]/dt;
-  }
-  effect *= fields[field_type][site];
-  return effect;
-}
-
-dcomp scalar_field::edge_effects_derivative(int site)
-{
-  dcomp effect = 0;
-  int n = calc_n(site);
-  int x = calc_x(site);
-  if (n == 0)
-  {
-    effect = 2.*field_2[x]/dt;
-  }
-  else if (n == 1)
-  {
-    effect = -1.*field_1[x]/dt;
-  }
-  else if (n == Nrpath - 1)
-  {
-    effect = field_1[x]/dt;
-  }
-  return effect;
-}
-
 //decomposing the total lattice position into the single timeslice position (for the dt array)
 int scalar_field::calc_n(int site)
 {
-  int n = site%Nrpath;
+  int n = site%host->Nrpath;
   return n;
 }
 
 int scalar_field::calc_x(int site)
 {
-  int x = int((site - calc_n(site))/Nrpath);
+  int x = int((site - calc_n(site))/host->Nrpath);
   return x;
 }
 
@@ -536,12 +497,12 @@ thimble_system::~thimble_system()
 }
 void thimble_system::add_scalar_field()
 {
-  scalars.emplace_back(scalar_field(Nx, Nt, dt, dx));
+  scalars.emplace_back(scalar_field(Nx, Nt, dt, dx, this));
 }
 
 void thimble_system::add_scalar_field(double mass)
 {
-  scalars.emplace_back(scalar_field(Nx, Nt, dt , dx));
+  scalars.emplace_back(scalar_field(Nx, Nt, dt, dx, this));
   scalars[scalars.size() - 1].set_mass(mass);
 }
 

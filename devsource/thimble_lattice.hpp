@@ -56,7 +56,6 @@ class scalar_field
 {
     private:
     int* occupation_number; //initial occupation number during field setup
-    int Nx, Nt, Npath, Nrpath, Ntot;
     double m, squareMass; //field mass
     double dt, dx; //lattice spacings
 
@@ -69,6 +68,7 @@ class scalar_field
     int* negative_time_site;
     int* negative_space_site; //co-ordinate shifted arrays to minimise computation time for neighbour sites
     dcomp j;
+    thimble_system* host;
 
     //private assigment constructor
     scalar_field& operator = (const scalar_field &t)
@@ -94,8 +94,6 @@ class scalar_field
     dcomp free_action(int site, int field_type = 0);
     dcomp free_action_derivative(int site, int field_type = 0);
     dcomp free_action_second_derivative(int site_1, int site_2);
-    dcomp edge_effects(int site, int field_type = 0);
-    dcomp edge_effects_derivative(int site);
     int calc_n(int site);
     int calc_x(int site);
 
@@ -105,7 +103,7 @@ class scalar_field
     double get_square_mass() {return squareMass;};
 
     //constructor, destructor and copy constructor
-    scalar_field(int x_dim, int t_dim, double system_dt, double system_dx);
+    scalar_field(int x_dim, int t_dim, double system_dt, double system_dx, thimble_system* current_host);
     ~scalar_field();
     scalar_field(const scalar_field &obj);
 
