@@ -934,13 +934,17 @@ matrix<dcomp> thimble_system::site_proposal()
 {
   int target_site = uniform_int(generator);
   dcomp proposal = gaussian(generator) + j*gaussian(generator);
-  dcomp* eta = new dcomp[Ntot];
-  for (int i = 0; i < Ntot; ++i)
+  dcomp* eta = new dcomp[Njac];
+  for (int i = 0; i < Njac; ++i)
   {
     eta[i] = 0;
   }
   eta[target_site] = proposal;
   matrix<dcomp> Delta = J.solve(eta);
+  for(uint i = 0; i < Njac; ++i)
+  {
+    Delta.set_element(i, 0, real(Delta.get_element(i, 0)));
+  }
 
   delete[] eta;
   return Delta;
@@ -957,7 +961,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   //this resets the gaussian distirbution to use the new sigma
   gaussian = redo;
   
-  std::uniform_int_distribution<int> redo_2(0, Nsys);
+  std::uniform_int_distribution<int> redo_2(0, Nsys - 1);
   //this resets the site selection system, informing it of the existence of all the fields
   uniform_int = redo_2;
 
@@ -972,7 +976,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   //initialising the fields
   for (int i = 0; i < scalars.size(); ++i)
   {
-    for (int k = 0; k < Ntot; ++k)
+    for (int k = 0; k < Nx; ++k)
     {
       a[k] = abcd(generator);
       b[k] = abcd(generator);
