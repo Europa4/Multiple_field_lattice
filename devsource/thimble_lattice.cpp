@@ -80,44 +80,40 @@ dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble
 
 //scalar field class to be incorporated into a system class (class composition)*******************************************************
 scalar_field::scalar_field(int x_dim, int t_dim, double system_dt, double system_dx, thimble_system* current_host) : occupation_number(new int[x_dim]),
-  Nx(x_dim), //member initialiser list 
-  Nt(t_dim), 
-  Npath(2*Nt), 
-  Nrpath(Npath - 4), //parameters of the lattice
-  Ntot(Nrpath*Nx), 
+  //member initialiser list 
   m(0),
   squareMass(0), 
   dt(system_dt),
   dx(system_dx),
-  path(new double[Nrpath]),
-  path_offset(new double[Nrpath]),
+  path(new double[current_host->Nrpath]),
+  path_offset(new double[current_host->Nrpath]),
   is_flowed(false),
-  field_0(new dcomp[Nx]),
-  field_1(new dcomp[Nx]),
-  field_2(new dcomp[Nx]),
-  positive_time_site(new int[Ntot]), //offset arrays to speed up computation
-  positive_space_site(new int[Ntot]),
-  negative_time_site(new int[Ntot]),
-  negative_space_site(new int[Ntot]),
+  field_0(new dcomp[current_host->Nx]),
+  field_1(new dcomp[current_host->Nx]),
+  field_2(new dcomp[current_host->Nx]),
+  positive_time_site(new int[current_host->Ntot]), //offset arrays to speed up computation
+  positive_space_site(new int[current_host->Ntot]),
+  negative_time_site(new int[current_host->Ntot]),
+  negative_space_site(new int[current_host->Ntot]),
   j(0,1),
   host(current_host)
 {
   //class constructor
-  fields[0] = new dcomp[Ntot]; //configuring the lattice arrays
-  fields[1] = new dcomp[Ntot];
-  fields[2] = new dcomp[Ntot];
-  fields[3] = new dcomp[Ntot];
-  fields[4] = new dcomp[Ntot];
+  fields[0] = new dcomp[current_host->Ntot]; //configuring the lattice arrays
+  fields[1] = new dcomp[current_host->Ntot];
+  fields[2] = new dcomp[current_host->Ntot];
+  fields[3] = new dcomp[current_host->Ntot];
+  fields[4] = new dcomp[current_host->Ntot];
 
-  C[0] = new dcomp[Ntot]; //configuring Mou's constant arrays
-  C[1] = new dcomp[Ntot];
-  C[2] = new dcomp[Ntot];
-  C[3] = new dcomp[Ntot];
-  C[4] = new dcomp[Ntot];
+  C[0] = new dcomp[current_host->Ntot]; //configuring Mou's constant arrays
+  C[1] = new dcomp[current_host->Ntot];
+  C[2] = new dcomp[current_host->Ntot];
+  C[3] = new dcomp[current_host->Ntot];
+  C[4] = new dcomp[current_host->Ntot];
 
   int n = 0;
   
-  for (int i = 0; i < Ntot; ++i)
+  for (int i = 0; i < current_host->Ntot; ++i)
   {
     //zero initialising the fields
     for(int k = 0; k < 5; ++k)
@@ -126,54 +122,54 @@ scalar_field::scalar_field(int x_dim, int t_dim, double system_dt, double system
     }
   }
   
-  for (int i = 0; i < Nx; ++i)
+  for (int i = 0; i < current_host->Nx; ++i)
   {
     //zero initialising the occupation number
     occupation_number[i] = 0;
   }
 
-  for (int i = 0; i < (int) (Nrpath/2); ++i)
+  for (int i = 0; i < (int) (current_host->Nrpath/2); ++i)
   {
     path[i] = dt;
-    path[i + (int)(Nrpath/2)] = -1.*dt;
+    path[i + (int)(current_host->Nrpath/2)] = -1.*dt;
   }
 
   path_offset[0] = -1.*dt;
-  for (int i = 0; i < Nrpath - 1; ++i)
+  for (int i = 0; i < current_host->Nrpath - 1; ++i)
   {
     path_offset[i + 1] = path[i];
   }
 
   //setting up the co-ordinate shifted arrays. Could combine them, but this won't be called much, so the legibility is prioritised over speed
   //I imagine the O3 flag for g++ automatically tidies them up anyway
-  for (int k = 0; k < Nx; ++k)
+  for (int k = 0; k < current_host->Nx; ++k)
   {
-    for (int i = 0; i < Nrpath - 1; ++i)
+    for (int i = 0; i < current_host->Nrpath - 1; ++i)
     {
-      positive_time_site[k*Nrpath + i] = k*Nrpath + i + 1;
+      positive_time_site[k*current_host->Nrpath + i] = k*current_host->Nrpath + i + 1;
     }
-    positive_time_site[(k + 1)*Nrpath - 1] = k*Nrpath;
+    positive_time_site[(k + 1)*current_host->Nrpath - 1] = k*current_host->Nrpath;
     
-    for (int i = 1; i < Nrpath; ++i)
+    for (int i = 1; i < current_host->Nrpath; ++i)
     {
-      negative_time_site[k*Nrpath + i] = k*Nrpath + i - 1;
+      negative_time_site[k*current_host->Nrpath + i] = k*current_host->Nrpath + i - 1;
     }
-    negative_time_site[k*Nrpath] = (k + 1)*Nrpath - 1;
+    negative_time_site[k*current_host->Nrpath] = (k + 1)*current_host->Nrpath - 1;
   }
   
-  for (int i = 0; i < Nrpath; ++i)
+  for (int i = 0; i < current_host->Nrpath; ++i)
   {
-    for (int k = 0; k < Nx - 1; ++k)
+    for (int k = 0; k < current_host->Nx - 1; ++k)
     {
-      positive_space_site[k*Nrpath + i] = (k + 1)*Nrpath + i;
+      positive_space_site[k*current_host->Nrpath + i] = (k + 1)*current_host->Nrpath + i;
     }
-    positive_space_site[(Nx - 1)*Nrpath + i] = i;
+    positive_space_site[(current_host->Nx - 1)*current_host->Nrpath + i] = i;
     
-    for (int k = 1; k < Nx; ++k)
+    for (int k = 1; k < current_host->Nx; ++k)
     {
-      negative_space_site[k*Nrpath + i] = (k - 1)*Nrpath + i;
+      negative_space_site[k*current_host->Nrpath + i] = (k - 1)*current_host->Nrpath + i;
     }
-    negative_space_site[i] = (Nx - 1)*Nrpath + i;
+    negative_space_site[i] = (current_host->Nx - 1)*current_host->Nrpath + i;
   }
 
 }
@@ -198,36 +194,32 @@ scalar_field::~scalar_field()
     delete[] path_offset;
 }
 
-scalar_field::scalar_field(const scalar_field &obj) : occupation_number(new int[obj.Nx]), //object copy constructor
-Nx(obj.Nx), //*large* member initalisation list 
-Nt(obj.Nt),
-Npath(obj.Npath),
-Nrpath(obj.Nrpath),
-Ntot(obj.Ntot),
+scalar_field::scalar_field(const scalar_field &obj) : occupation_number(new int[obj.host->Nx]), //object copy constructor
+//*large* member initalisation list 
 m(obj.m),
 squareMass(obj.squareMass),
 dt(obj.dt),
 dx(obj.dx),
-path(new double[obj.Nrpath]),
-path_offset(new double[obj.Nrpath]),
+path(new double[obj.host->Nrpath]),
+path_offset(new double[obj.host->Nrpath]),
 is_flowed(obj.is_flowed),
-field_0(new dcomp[obj.Nx]),
-field_1(new dcomp[obj.Nx]),
-field_2(new dcomp[obj.Nx]),
-positive_time_site(new int[obj.Ntot]),
-positive_space_site(new int[obj.Ntot]),
-negative_time_site(new int[obj.Ntot]),
-negative_space_site(new int[obj.Ntot]),
+field_0(new dcomp[obj.host->Nx]),
+field_1(new dcomp[obj.host->Nx]),
+field_2(new dcomp[obj.host->Nx]),
+positive_time_site(new int[obj.host->Ntot]),
+positive_space_site(new int[obj.host->Ntot]),
+negative_time_site(new int[obj.host->Ntot]),
+negative_space_site(new int[obj.host->Ntot]),
 j(obj.j),
 host(obj.host)
 {
   for (int i = 0; i < 5; ++i)
   {
-    fields[i] = new dcomp[obj.Ntot];
-    C[i] = new dcomp[obj.Ntot];
+    fields[i] = new dcomp[obj.host->Ntot];
+    C[i] = new dcomp[obj.host->Ntot];
   }
 
-  for (int i = 0; i < Nx; ++i)
+  for (int i = 0; i < host->Nx; ++i)
   {
     occupation_number[i] = obj.occupation_number[i]; //setting values for the arrays that are copied over from the original object
     field_0[i] = obj.field_0[i];
@@ -235,7 +227,7 @@ host(obj.host)
     field_2[i] = obj.field_2[i];
   }
   
-  for(int i = 0; i < Ntot; ++i)
+  for(int i = 0; i < host->Ntot; ++i)
   {
     positive_time_site[i] = obj.positive_time_site[i];
     positive_space_site[i] = obj.positive_space_site[i];
@@ -248,7 +240,7 @@ host(obj.host)
     }
   }
 
-  for (int i = 0; i < Nrpath; ++i)
+  for (int i = 0; i < host->Nrpath; ++i)
   {
     path[i] = obj.path[i];
     path_offset[i] = obj.path_offset[i];
@@ -257,7 +249,7 @@ host(obj.host)
 
 void scalar_field::set_occupation_number(int new_occupation_number[])
 {
-  for (int i = 0; i < Nx; ++i)
+  for (int i = 0; i < host->Nx; ++i)
   {
     occupation_number[i] = new_occupation_number[i];
   }
@@ -265,7 +257,7 @@ void scalar_field::set_occupation_number(int new_occupation_number[])
 
 void scalar_field::set_occupation_number(int new_occupation_number)
 {
-  for(int i = 0; i < Nx; ++i)
+  for(int i = 0; i < host->Nx; ++i)
   {
     occupation_number[i] = new_occupation_number;
   }
@@ -289,24 +281,24 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
   double p, omega_p, omega_tilde, Omega_p, V;
 
   
-  for (int i = 0; i < Nx; ++i)
+  for (int i = 0; i < host->Nx; ++i)
   {
     field_0[i] = 0;
     field_1[i] = 0;
   } //random number arrays for Mou's initial conditions, and the initial states of the phi field
 
-  V = Nx*dx;
+  V = host->Nx*dx;
 
-  for (int i = 0; i < Nx; ++i)
+  for (int i = 0; i < host->Nx; ++i)
 	{
     //p = i*2.*pi/(Nx*dx);
-    for(uint q = 0; q < Nx; ++q)
+    for(uint q = 0; q < host->Nx; ++q)
     {
-      p = pow(2.*(1. - cos(q*2.*pi/(dx*Nx)))/pow(dx, 2), 0.5);
+      p = pow(2.*(1. - cos(q*2.*pi/(dx*host->Nx)))/pow(dx, 2), 0.5);
       omega_p = pow(pow(p,2) + pow(m,2),0.5);
       omega_tilde = acos(1 - pow(omega_p*dt,2)/2)/dt;
       Omega_p = sin(omega_p*dt)/dt; //configuring variables for this momentum
-      if ((Nx - q)%Nx == 0)
+      if ((host->Nx - q)%host->Nx == 0)
       {
         //corner mode case
         field_0[i] += a[q]*pow(e,j*p*(i*dx))*pow(occupation_number[q] + 0.5,0.5)/pow(Omega_p,0.5);
@@ -327,38 +319,38 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
     //field_1[i] = 1.0;
   }
 
-  for(int k = 0; k < Nx; ++k)
+  for(int k = 0; k < host->Nx; ++k)
   {
-      fields[2][0 + Nrpath*k] = field_1[k];
-      fields[2][1 + Nrpath*k] = -1.0*dt*dt*(squareMass*fields[2][0 + Nrpath*k]) + 2.0*fields[2][0 + Nrpath*k] - field_0[k];
-      for (int i = 1; i < (int) (Nrpath/2); ++i)
+      fields[2][0 + host->Nrpath*k] = field_1[k];
+      fields[2][1 + host->Nrpath*k] = -1.0*dt*dt*(squareMass*fields[2][0 + host->Nrpath*k]) + 2.0*fields[2][0 + host->Nrpath*k] - field_0[k];
+      for (int i = 1; i < (int) (host->Nrpath/2); ++i)
       {
-        fields[2][i + Nrpath*k + 1] = -dt*dt*squareMass*fields[2][i + Nrpath*k] + 2.0*fields[2][i + Nrpath*k] - fields[2][i + Nrpath*k - 1];
+        fields[2][i + host->Nrpath*k + 1] = -dt*dt*squareMass*fields[2][i + host->Nrpath*k] + 2.0*fields[2][i + host->Nrpath*k] - fields[2][i + host->Nrpath*k - 1];
       }
       
-      for(int i = 0; i < (int) (Nrpath/2); ++i)
+      for(int i = 0; i < (int) (host->Nrpath/2); ++i)
       {
-        fields[2][Nrpath*(k + 1) - i - 1] = fields[2][Nrpath*k + i + 1]; //sets up the return leg of the contour
+        fields[2][host->Nrpath*(k + 1) - i - 1] = fields[2][host->Nrpath*k + i + 1]; //sets up the return leg of the contour
       }
   }
 
   //clearing the classical data from the first site, note the initial condition data is saved in field_0 and field_1
-  for(int i = 0; i < Nx; ++i)
+  for(int i = 0; i < host->Nx; ++i)
   {
     fields[2][i] = 0;
   }
 
-  for (int i = 0; i < Ntot; ++i)
+  for (int i = 0; i < host->Ntot; ++i)
   {
     fields[0][i] = fields[2][i];
   }
   
-  for(int i = 0; i < Nx; ++i)
+  for(int i = 0; i < host->Nx; ++i)
   {
-    field_2[i] = fields[2][i*Nrpath + 1];
+    field_2[i] = fields[2][i*host->Nrpath + 1];
   }
   //setting up Mou's constant arrays
-  for (int i = 0; i < Ntot; ++i)
+  for (int i = 0; i < host->Ntot; ++i)
   {
     int n = calc_n(i);
     C[0][i] = -1.*dx*j*(1/path[n] + 1/path_offset[n] + (path[n] + path_offset[n]/2.)*(-2./pow(dx, 2) - squareMass));
@@ -368,15 +360,15 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
     C[4][i] = 0.;
   }
   //edge terms for the edge effects
-  for (int i = 0; i < Nx; ++i)
+  for (int i = 0; i < host->Nx; ++i)
   {
-    C[4][i*Nrpath] = -2.*j*field_2[i]/dt;
-    C[4][i*Nrpath + 1] = j*field_1[i]/dt;
-    C[4][(i + 1)*Nrpath - 1] = -1.*j*field_1[i]/dt;
+    C[4][i*host->Nrpath] = -2.*j*field_2[i]/dt;
+    C[4][i*host->Nrpath + 1] = j*field_1[i]/dt;
+    C[4][(i + 1)*host->Nrpath - 1] = -1.*j*field_1[i]/dt;
   }
 
   //setting up Mou's constant arrays
-  for (int i = 0; i < Ntot; ++i)
+  for (int i = 0; i < host->Ntot; ++i)
   {
     int n = calc_n(i);
     C[0][i] = -1.*dx*j*(1/path[n] + 1/path_offset[n] + ((path[n] + path_offset[n])/2.)*(-2./pow(dx, 2) - squareMass));
@@ -386,18 +378,18 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
     C[4][i] = 0.;
   }
   //edge terms for the edge effects
-  for (int i = 0; i < Nx; ++i)
+  for (int i = 0; i < host->Nx; ++i)
   {
-    C[4][i*Nrpath] = -2.*j*field_2[i]/dt;
-    C[4][i*Nrpath + 1] = j*field_1[i]/dt;
-    C[4][(i + 1)*Nrpath - 1] = -1.*j*field_1[i]/dt;
+    C[4][i*host->Nrpath] = -2.*j*field_2[i]/dt;
+    C[4][i*host->Nrpath + 1] = j*field_1[i]/dt;
+    C[4][(i + 1)*host->Nrpath - 1] = -1.*j*field_1[i]/dt;
   }
 
   //applying the anti-periodic bounday terms
-  for(int i = 0; i < Nx; ++i)
+  for(int i = 0; i < host->Nx; ++i)
   {
-    C[1][(i + 1)*Nrpath - 1] *= -1.;
-    C[2][i*Nrpath] *= -1.;
+    C[1][(i + 1)*host->Nrpath - 1] *= -1.;
+    C[2][i*host->Nrpath] *= -1.;
   }
 
 
@@ -442,7 +434,7 @@ dcomp scalar_field::free_action_second_derivative(int site_1, int site_2)
 
 void scalar_field::set_dt(double new_dt)
 {
-  for (int i = 0; i < Nrpath; ++i)
+  for (int i = 0; i < host->Nrpath; ++i)
   {
     path[i] *= new_dt/dt; //rescales the path to account for a new lattice spacing
   }
