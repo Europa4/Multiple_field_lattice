@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 
   std::vector<int> powers = {4};
   int start_record = 0;
-  int end_record = 1;
+  int end_record = 200;
   int cycles;
 
   cycles = int(ceil((end_record - start_record)/world_size));
@@ -46,17 +46,14 @@ int main(int argc, char **argv)
     printf("simulation %i initiated with seed %i \n", i*world_size + world_rank + start_record, seed);
     thimble_system sys(1, 10, 1.5, seed);
     sys.add_scalar_field(1.0);
-    //sys.add_scalar_field(2.0);
-    //sys.add_scalar_field(0.95);
+    sys.add_scalar_field(0.95);
     //sys.add_interaction(1./24, powers);
-    //sys.set_path("../Data_site_test_2/heavy_field_test/");
-    //sys.set_path("../Data_site_test_2/light_field_test_95/");
+    sys.set_path("../Data_multiple_fields_large_step_2/");
     sys.set_name("phi_" + std::to_string(i*world_size + world_rank + start_record));
     sys.set_dt(0.5);
     sys.set_dx(0.75);
-    sys.set_proposal_size(0.5);
-    printf("This system takes %i bytes of memeory \n", sizeof(sys));
-    sys.simulate(pow(2*10, 1), pow(10, 1));
+    sys.set_proposal_size(2);
+    sys.simulate(pow(2*10, 3), pow(10, 5));
     printf("simulation %i completed \n", i*world_size + world_rank + start_record);
   }
   /*
