@@ -23,7 +23,7 @@ def ft_1_1(phi, dx):
     return phi_p
 
 def ft(phi, p, dx):
-    phi_p = np.zeros(phi.shape[1])
+    phi_p = np.zeros(phi.shape[1], dtype = complex)
     i = complex(0, 1)
     for j in np.arange(phi.shape[0]):
         phi_p += phi[j, :]*np.exp(i*j*dx*p)
