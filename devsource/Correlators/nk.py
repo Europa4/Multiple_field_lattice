@@ -8,6 +8,7 @@ Created on Tue Dec 17 19:36:03 2019
 import numpy as np
 import pandas as pd
 from multiprocessing import Pool
+import time
 
 import prot
 import FT_1_1_module as FT
@@ -32,7 +33,7 @@ def observable(phi_data, header, p):
     phi_nk = FT.ft(i_phi, -1*p, prot.deltaX)
     phi_k = np.reshape(phi_k, (1, prot.Nt - 2))
     phi_nk = np.reshape(phi_nk, (prot.Nt - 2, 1))
-    propogator = np.matmul(phi_k, phi_nk)
+    propogator = np.matmul(phi_nk, phi_k)
     return propogator
 
 def calc_expectation_and_error(n):
@@ -64,7 +65,6 @@ def calc_expectation_and_error(n):
         numerator[i, :] = Obs*phi_tilde[i] #this is the unaveraged numerator
     #This calculates the expression fully for one initiatlisation
     expectation_observable = np.mean(numerator, axis = 0)/denominator
-    print("67")
 
     #error analysis for this file
     for i in np.arange(prot.Nt - 2):
@@ -72,7 +72,7 @@ def calc_expectation_and_error(n):
            file_error[i, j] = jackknife(np.real(numerator[:, i, j]/denominator), jackknife_block_length) + prot.j*jackknife(np.imag(numerator[:, i, j]/denominator), jackknife_block_length)
     return [expectation_observable, file_error]
 
-n_files = 2
+n_files = 100
 jackknife_block_length = 250
 expectation_observable = np.zeros((n_files, prot.Nt - 2, prot.Nt - 2), dtype = complex)
 file_error = np.zeros((n_files, prot.Nt - 2, prot.Nt - 2), dtype = complex)
@@ -94,6 +94,6 @@ ddF = FT.calc_ddF(final_expectation, prot.deltaT)
 
 w_squared = ddF/F
 c = np.sqrt(1 - 0.25*(prot.deltaT)**2*w_squared)
-n = c*np.sqrt(ddF*F)
+n = c*np.sqrt(ddF*F) - 0.5
 
 print(n)
