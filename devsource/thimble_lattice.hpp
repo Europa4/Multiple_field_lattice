@@ -8,6 +8,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/multiprecision/float128.hpp>
 #include <boost/multiprecision/cpp_complex.hpp>
+#include <boost/algorithm/string.hpp>
+#include <algorithm>
 #include <stdio.h>
 #include <string>
 #include <time.h>
@@ -88,6 +90,7 @@ class scalar_field
     void initialise(double a[], double b[], double c[], double d[]);
     void set_occupation_number(int new_occupation_number[]);
     void set_occupation_number(int new_occupation_number);
+    void calculate_C();
     void set_mass(double new_mass);
     void set_dx(double new_dx) {dx = new_dx;};
     void set_dt(double new_dt);    
@@ -160,7 +163,8 @@ class thimble_system
     void add_interaction(double coupling, int powers);
     void set_path(std::string new_path);
     void set_name(std::string new_name) {file_name = new_name;};
-    void simulate(int n_burn_in, int n_simulation);
+    void simulate(int n_burn_in, int n_simulation, int n_existing = 0);
+    void restart(std::string data_path, std::string aux_path, int n_new_simulation);
     dcomp calc_S(int field_type = 0);
     void set_field_mass(int field_number, double new_mass);
     void set_dt(double new_dt);

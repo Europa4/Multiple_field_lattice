@@ -30,11 +30,12 @@ int main(int argc, char **argv)
   uniform_int_distribution<int> dist(0, pow(2,16));
 
   std::vector<int> powers = {4};
-  int start_record = 0;
-  int end_record = 200;
+  double start_record = 0; //counterintuitively these should be doubles not ints. Integer division causes issues.
+  double end_record = 1;
   int cycles;
 
   cycles = int(ceil((end_record - start_record)/world_size));
+
   /*
   auto start = std::chrono::system_clock::now();
   std::time_t start_t = std::chrono::system_clock::to_time_t(start);
@@ -44,19 +45,20 @@ int main(int argc, char **argv)
   {
     seed = dist(rd);
     printf("simulation %i initiated with seed %i \n", i*world_size + world_rank + start_record, seed);
-    thimble_system sys(1, 10, 1.5, seed);
+    thimble_system sys(8, 10, 1.5, seed);
     sys.add_scalar_field(1.0);
     //sys.add_scalar_field(0.95);
     //sys.add_interaction(1./24, powers);
-    sys.set_path("../Data_thermal/");
+    sys.set_path("../Data_1_1_timing/");
     sys.set_name("phi_" + std::to_string(i*world_size + world_rank + start_record));
     sys.set_dt(0.5);
     sys.set_dx(0.75);
     sys.set_occupation_number(0, 1);
     sys.set_proposal_size(2);
-    sys.simulate(2*pow(10, 3), pow(10, 5));
+    sys.simulate(0, 2);
     printf("simulation %i completed \n", i*world_size + world_rank + start_record);
   }
+
   /*
   auto end = std::chrono::system_clock::now();
   std::time_t end_t = std::chrono::system_clock::to_time_t(end);

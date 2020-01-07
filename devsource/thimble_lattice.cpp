@@ -2,6 +2,8 @@
 using std::abs;
 using std::exp;
 using std::log;
+
+
 //simple dirac delta function
 template <class T>
 double dd(T i, T j)
@@ -18,9 +20,10 @@ double dd(T i, T j)
 //interaction class for mediating between fields
 interaction::interaction(double Coupling, std::vector<int> Powers) : coupling(Coupling), powers(Powers) 
 {
-
+  //empty constructor
 }
 
+//basic interaction, assuming no derivatives
 dcomp interaction::base(int site, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
@@ -33,6 +36,7 @@ dcomp interaction::base(int site, thimble_system &current_system, int field_type
   return interaction_contribution;
 }
 
+//differentiated with respect to the field (field) at site (site)
 dcomp interaction::first_derivative(int site, int field, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
@@ -53,6 +57,7 @@ dcomp interaction::first_derivative(int site, int field, thimble_system &current
   return interaction_contribution;
 }
 
+//second derivative set up similarly to the one above. Takes into account that unless the derivates and fields are the same then it should return zero.
 dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
@@ -247,6 +252,7 @@ host(obj.host)
   }
 }
 
+//sets the occupation number of the momentum modes of a distribution
 void scalar_field::set_occupation_number(int new_occupation_number[])
 {
   for (int i = 0; i < host->Nx; ++i)
@@ -255,6 +261,7 @@ void scalar_field::set_occupation_number(int new_occupation_number[])
   }
 }
 
+//same as above, but for a constant value
 void scalar_field::set_occupation_number(int new_occupation_number)
 {
   for(int i = 0; i < host->Nx; ++i)
@@ -285,7 +292,7 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
   {
     field_0[i] = 0;
     field_1[i] = 0;
-  } //random number arrays for Mou's initial conditions, and the initial states of the phi field
+  } 
 
   V = host->Nx*dx;
 
@@ -349,24 +356,11 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
   {
     field_2[i] = fields[2][i*host->Nrpath + 1];
   }
-  //setting up Mou's constant arrays
-  for (int i = 0; i < host->Ntot; ++i)
-  {
-    int n = calc_n(i);
-    C[0][i] = -1.*dx*j*(1/path[n] + 1/path_offset[n] + (path[n] + path_offset[n]/2.)*(-2./pow(dx, 2) - squareMass));
-    C[1][i] = j*dx/path[n];
-    C[2][i] = j*dx/path_offset[n];
-    C[3][i] = -1.*dx*j*(path[n] + path_offset[n])/(2.*pow(dx, 2));
-    C[4][i] = 0.;
-  }
-  //edge terms for the edge effects
-  for (int i = 0; i < host->Nx; ++i)
-  {
-    C[4][i*host->Nrpath] = -2.*j*field_2[i]/dt;
-    C[4][i*host->Nrpath + 1] = j*field_1[i]/dt;
-    C[4][(i + 1)*host->Nrpath - 1] = -1.*j*field_1[i]/dt;
-  }
+  calculate_C();
+}
 
+void scalar_field::calculate_C()
+{
   //setting up Mou's constant arrays
   for (int i = 0; i < host->Ntot; ++i)
   {
@@ -391,8 +385,6 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
     C[1][(i + 1)*host->Nrpath - 1] *= -1.;
     C[2][i*host->Nrpath] *= -1.;
   }
-
-
 }
 
 dcomp scalar_field::free_action(int site, int field_type)
@@ -448,6 +440,7 @@ int scalar_field::calc_n(int site)
   return n;
 }
 
+//decomposing the composite lattice position to calculate the spacesclice position
 int scalar_field::calc_x(int site)
 {
   int x = int((site - calc_n(site))/host->Nrpath);
@@ -475,7 +468,8 @@ sigma(0.07071067812),
 delta(0.1),
 generator(rng_seed),
 uniform_double(0, 1),
-abcd(0, 1)
+abcd(0, 1),
+acceptance_rate(0.)
 { 
   //determining the number of timesteps for the ODE solvers from the flow time  
   h = 0.02; //sets the base size 
@@ -485,21 +479,24 @@ abcd(0, 1)
 
 thimble_system::~thimble_system()
 {
-
+  //empty destructor
 }
 void thimble_system::add_scalar_field()
 {
+  //adds a scalar field to the vector of scalar fields
   scalars.emplace_back(scalar_field(Nx, Nt, dt, dx, this));
 }
 
 void thimble_system::add_scalar_field(double mass)
 {
+  //adds a scalar field and a mass at the same time, otherwise same as above
   scalars.emplace_back(scalar_field(Nx, Nt, dt, dx, this));
   scalars[scalars.size() - 1].set_mass(mass);
 }
 
 void thimble_system::add_interaction(double coupling, std::vector<int> powers)
 {
+  //adds an interaction to the list of all possible interactions
   interactions.emplace_back(interaction(coupling, powers));
 }
 
@@ -903,7 +900,7 @@ matrix<dcomp> thimble_system::site_proposal()
   return Delta;
 }
 
-void thimble_system::simulate(int n_burn_in, int n_simulation)
+void thimble_system::simulate(int n_burn_in, int n_simulation, int n_existing)
 {
   pre_simulation_check();
   Njac = scalars.size()*Ntot; //setting the size of the Jacobian "matricies"
@@ -920,23 +917,26 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
 
   dcomp* state_storage = new dcomp[(Njac + 2)*n_simulation]; //This stores the data between updates and will be saved to a file
   std::ofstream data_storage;
+  std::ofstream aux_storage;
 
   double *a = new double[Nx];
   double *b = new double[Nx];
   double *c = new double[Nx];
   double *d = new double[Nx];
-
-  //initialising the fields
-  for (int i = 0; i < scalars.size(); ++i)
+  if(n_existing == 0)
   {
-    for (int k = 0; k < Nx; ++k)
+    //initialising the fields
+    for (int i = 0; i < scalars.size(); ++i)
     {
-      a[k] = abcd(generator);
-      b[k] = abcd(generator);
-      c[k] = abcd(generator);
-      d[k] = abcd(generator);
+      for (int k = 0; k < Nx; ++k)
+      {
+        a[k] = abcd(generator);
+        b[k] = abcd(generator);
+        c[k] = abcd(generator);
+        d[k] = abcd(generator);
+      }
+      scalars[i].initialise(a, b, c, d);
     }
-    scalars[i].initialise(a, b, c, d);
   }
   J.resize(Njac, Njac);
   J_conj.resize(Njac, Njac);
@@ -948,7 +948,7 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
   {
     update();
   }
-  acceptance_rate = 0.;
+
   for(int i = 0; i < n_simulation; ++i)
   {
     acceptance_rate += update(); //calculating the acceptance rate from the return value of the update
@@ -965,27 +965,35 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
     state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = log(real(J.get_det())) +j*arg(J.get_det());
     //adding auxiliary parameters, action and the log determinant
   }
-  acceptance_rate /= n_simulation;
-
-  data_storage.open(rel_path + file_name);
-  //saving initial conditions, random seed, and simulation parameters
-  data_storage << rng_seed << ",";
-  for(int i = 0; i < scalars.size(); ++i)
+  acceptance_rate /= (n_simulation + n_existing);
+  if (n_existing == 0)
   {
-    for(int k = 0; k < Nx; ++k)
+    //opens the file for header writing if there aren't any existing records
+    data_storage.open(rel_path + file_name);
+    //saving initial conditions, random seed, and simulation parameters
+    data_storage << rng_seed << ",";
+    for(int i = 0; i < scalars.size(); ++i)
     {
-      data_storage << real(scalars[i].field_0[k]) << "," << imag(scalars[i].field_0[k]) << ",";
+      for(int k = 0; k < Nx; ++k)
+      {
+        data_storage << real(scalars[i].field_0[k]) << "," << imag(scalars[i].field_0[k]) << ",";
+      }
     }
+    //saving the data previously stored
+    for (int i = 0; i < scalars.size(); ++i)
+    {
+      for (int k = 0; k < Nx; ++k)
+      {
+        data_storage << real(scalars[i].field_1[k]) << "," << imag(scalars[i].field_1[k]) << ",";
+      }
+    }
+    data_storage << delta << "," << tau << "," << acceptance_rate << std::endl;
   }
-  //saving the data previously stored
-  for (int i = 0; i < scalars.size(); ++i)
+  else
   {
-    for (int k = 0; k < Nx; ++k)
-    {
-      data_storage << real(scalars[i].field_1[k]) << "," << imag(scalars[i].field_1[k]) << ",";
-    }
+    //opens the file for appending if there are existing records 
+    data_storage.open(rel_path + file_name, std::ios_base::app);
   }
-  data_storage << delta << "," << tau << "," << acceptance_rate << std::endl;
   for(int i = 0; i < n_simulation; ++i)
   {
     for (int k = 0; k < Njac + 1; ++k)
@@ -996,6 +1004,18 @@ void thimble_system::simulate(int n_burn_in, int n_simulation)
     data_storage << real(state_storage[i*(Njac + 2) + Njac + 1]) << "," << imag(state_storage[i*(Njac + 2) + Njac + 1]) << std::endl;
   }
   data_storage.close();
+
+  //this bit stores the conditions on the real manifold for the last iteration before the simulation closes. This can then be used to recover the state 
+  aux_storage.open(rel_path + file_name + "_aux");
+  for (uint i = 0; i < scalars.size(); ++i)
+  {
+    for (uint k = 0; k < Ntot; ++k)
+    {
+      aux_storage << real(scalars[i].fields[2][k]) << ",";
+    }
+  }
+  aux_storage << n_simulation + n_existing;
+  aux_storage.close();
   delete[] state_storage;
   delete[] a;
   delete[] b;
@@ -1100,6 +1120,41 @@ void thimble_system::pre_simulation_check()
     printf("This can be solved by reducing the temporal link size to at least %f. Doing this will require at least %i time sites to maintain the existing range. \n", new_dt, number_of_new_sites);
     exit(11);
   }
+}
+
+void thimble_system::restart(std::string data_path, std::string aux_path, int n_new_simulation)
+{
+  std::ifstream file(data_path);
+  std::vector<std::string> header;
+  std::string line;
+  getline(file, line);
+  boost::algorithm::split(header, line, boost::is_any_of(","));
+  for (uint i = 0; i < scalars.size(); ++i)
+  {
+    for (uint k = 0; k < Nx; ++k)
+    {
+      //loading in the initial time data from the header
+      scalars[i].field_0[k] = std::stod(header[2*k + i*Nx + 1]) + j*std::stod(header[2*k + i*Nx + 2]);
+      scalars[i].field_1[k] = std::stod(header[2*k + i*Nx + 1 + scalars.size()*Nx]) + j*std::stod(header[2*k + i*Nx + 2 + scalars.size()*Nx]);
+      scalars[i].field_2[k] = -1.*pow(dt, 2) + 2.*scalars[i].field_1[k] - scalars[i].field_0[k];
+    }
+    //loading in the flow constants
+    scalars[i].calculate_C();
+  }
+  
+  std::ifstream aux_file(aux_path);
+  std::vector<std::string> field_state;
+  getline(aux_file, line);
+  boost::algorithm::split(field_state, line, boost::is_any_of(","));
+  acceptance_rate = std::stod(header[0])*std::stod(field_state[scalars.size()*Ntot]);
+  for(uint i = 0; i < scalars.size(); ++i)
+  {
+    for(uint k = 0; k < Ntot; ++k)
+    {
+      scalars[i].fields[2][k] = std::stod(field_state[i*Ntot + k]);
+    }
+  }
+  simulate(0, n_new_simulation, int(std::stod(field_state[scalars.size()*Ntot])));
 }
 
 void thimble_system::test()
