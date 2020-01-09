@@ -4,7 +4,7 @@ LINKER 	= -o
 CFLAGS 	= -c
 
 program     = evolve_exec
-objects     = main.o thimble_lattice.o
+objects     = main.o thimble_lattice.o scalars_and_interactions.o
 
 $(program): $(objects)
 	mpic++ $(objects) -o $(program) $(LIBS)
@@ -14,6 +14,9 @@ main.o: main.cpp
 
 thimble_lattice.o: thimble_lattice.cpp thimble_lattice.hpp matrix.hpp
 	mpic++ -c thimble_lattice.cpp $(LIBS)
+
+scalars_and_interactions.o: scalars_and_interactions.cpp thimble_lattice.hpp
+	mpic++ -c scalars_and_interactions.cpp $(LIBS)
 
 clean:
 	rm -f  core $(objects) $(program)
