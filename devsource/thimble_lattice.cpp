@@ -382,7 +382,7 @@ int thimble_system::update()
   mydouble matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
   int output = 0; //this is the return value
   
-  matrix<dcomp> Delta = site_proposal();
+  matrix<dcomp> Delta = sweep_proposal();
 
   //creating new basefield condtions
   for(int i = 0; i < scalars.size(); ++i)
