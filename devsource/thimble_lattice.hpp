@@ -65,10 +65,10 @@ class scalar_field
     dcomp* field_0;
     dcomp* field_1; //sites 0 and 1, which are integrated out of the full simulation
     dcomp* field_2; //used for the edge case calculation, this is the initial state of field site 2 given the initial conditions
-    int* positive_time_site;
-    int* positive_space_site;
-    int* negative_time_site;
-    int* negative_space_site; //co-ordinate shifted arrays to minimise computation time for neighbour sites
+    uint* positive_time_site;
+    uint* positive_space_site;
+    uint* negative_time_site;
+    uint* negative_space_site; //co-ordinate shifted arrays to minimise computation time for neighbour sites
     dcomp j;
     thimble_system* host;
 
@@ -94,10 +94,10 @@ class scalar_field
     void set_mass(double new_mass);
     void set_dx(double new_dx) {dx = new_dx;};
     void set_dt(double new_dt);    
-    dcomp free_action(int site, int field_type = 0);
-    dcomp free_action_derivative(int site, int field_type = 0);
-    dcomp free_action_second_derivative(int site_1, int site_2);
-    int calc_n(int site);
+    dcomp free_action(uint site, uint field_type = 0);
+    dcomp free_action_derivative(uint site, uint field_type = 0);
+    dcomp free_action_second_derivative(uint site_1, uint site_2);
+    uint calc_n(uint site);
     int calc_x(int site);
 
 
@@ -116,10 +116,10 @@ class scalar_field
 class thimble_system
 {
     protected:
-    int Nx, Nt, Npath, Nrpath, Ntot, Nsys; //lattice setup parameters
+    uint Nx, Nt, Npath, Nrpath, Ntot, Nsys; //lattice setup parameters
     int number_of_timesteps; //number of iterations for the ode solver
-    int Njac;
-    int NjacSquared;
+    uint Njac;
+    uint NjacSquared;
     double tau; //flowtime
     double h; //ode step size
     double dx;
@@ -141,10 +141,10 @@ class thimble_system
     std::normal_distribution<double> abcd;
 
     matrix<dcomp> calc_jacobian(bool proposal = false);
-    dcomp calc_dS(int site, int field, int field_type);
-    dcomp calc_dS(int site, int field_type);
-    dcomp calc_ddS(int site_1, int site_2, int field_1, int field_2, int field_type = 0);
-    dcomp calc_ddS(int site_1, int site_2, int field_type = 0);
+    dcomp calc_dS(uint site, uint field, uint field_type);
+    dcomp calc_dS(uint site, uint field_type);
+    dcomp calc_ddS(uint site_1, uint site_2, uint field_1, uint field_2, uint field_type = 0);
+    dcomp calc_ddS(uint site_1, uint site_2, uint field_type = 0);
     field_id_return calc_field(int master_site);
     void sync_ajustment(dcomp ajustment[]);
     int update();
@@ -163,9 +163,9 @@ class thimble_system
     void add_interaction(double coupling, int powers);
     void set_path(std::string new_path);
     void set_name(std::string new_name) {file_name = new_name;};
-    void simulate(int n_burn_in, int n_simulation, int n_existing = 0);
+    void simulate(uint n_burn_in, uint n_simulation, uint n_existing = 0);
     void restart(std::string data_path, std::string aux_path, int n_new_simulation);
-    dcomp calc_S(int field_type = 0);
+    dcomp calc_S(uint field_type = 0);
     void set_field_mass(int field_number, double new_mass);
     void set_dt(double new_dt);
     void set_dx(double new_dx);

@@ -96,10 +96,10 @@ scalar_field::scalar_field(int x_dim, int t_dim, double system_dt, double system
   field_0(new dcomp[current_host->Nx]),
   field_1(new dcomp[current_host->Nx]),
   field_2(new dcomp[current_host->Nx]),
-  positive_time_site(new int[current_host->Ntot]), //offset arrays to speed up computation
-  positive_space_site(new int[current_host->Ntot]),
-  negative_time_site(new int[current_host->Ntot]),
-  negative_space_site(new int[current_host->Ntot]),
+  positive_time_site(new uint[current_host->Ntot]), //offset arrays to speed up computation
+  positive_space_site(new uint[current_host->Ntot]),
+  negative_time_site(new uint[current_host->Ntot]),
+  negative_space_site(new uint[current_host->Ntot]),
   j(0,1),
   host(current_host)
 {
@@ -211,10 +211,10 @@ is_flowed(obj.is_flowed),
 field_0(new dcomp[obj.host->Nx]),
 field_1(new dcomp[obj.host->Nx]),
 field_2(new dcomp[obj.host->Nx]),
-positive_time_site(new int[obj.host->Ntot]),
-positive_space_site(new int[obj.host->Ntot]),
-negative_time_site(new int[obj.host->Ntot]),
-negative_space_site(new int[obj.host->Ntot]),
+positive_time_site(new uint[obj.host->Ntot]),
+positive_space_site(new uint[obj.host->Ntot]),
+negative_time_site(new uint[obj.host->Ntot]),
+negative_space_site(new uint[obj.host->Ntot]),
 j(obj.j),
 host(obj.host)
 {
@@ -387,7 +387,7 @@ void scalar_field::calculate_C()
   }
 }
 
-dcomp scalar_field::free_action(int site, int field_type)
+dcomp scalar_field::free_action(uint site, uint field_type)
 {
   //Standard P^2 - m^2 action
   dcomp S = 0;
@@ -408,7 +408,7 @@ dcomp scalar_field::free_action(int site, int field_type)
   return S;
 }
 
-dcomp scalar_field::free_action_derivative(int site, int field_type)
+dcomp scalar_field::free_action_derivative(uint site, uint field_type)
 {
   //derivative of the above action
   dcomp dS = C[0][site]*fields[field_type][site] + C[1][site]*fields[field_type][positive_time_site[site]] + C[2][site]*fields[field_type][negative_time_site[site]]
@@ -416,7 +416,7 @@ dcomp scalar_field::free_action_derivative(int site, int field_type)
   return dS;
 }
 
-dcomp scalar_field::free_action_second_derivative(int site_1, int site_2)
+dcomp scalar_field::free_action_second_derivative(uint site_1, uint site_2)
 {
   //second derivative calculation
   dcomp ddS = C[0][site_1]*dd(site_1, site_2) + C[1][site_1]*dd(positive_time_site[site_1], site_2) + C[2][site_1]*dd(negative_time_site[site_1], site_2)
@@ -434,9 +434,9 @@ void scalar_field::set_dt(double new_dt)
 }
 
 //decomposing the total lattice position into the single timeslice position (for the dt array)
-int scalar_field::calc_n(int site)
+uint scalar_field::calc_n(uint site)
 {
-  int n = site%host->Nrpath;
+  uint n = site%host->Nrpath;
   return n;
 }
 
