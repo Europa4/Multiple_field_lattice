@@ -34,14 +34,15 @@ def observable(phi_data, header):
     return classical_classical_correlator
 
 
-n_files = 160
+n_files = 200
 jackknife_block_length = 250
 expectation_observable_phi = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
 expectation_observable_chi = np.copy(expectation_observable_phi)
 file_error_phi = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
 file_error_chi = np.copy(file_error_phi)
 x_range = np.arange(prot.Nt) + 1
-location = "/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/2_free_field_mass_field_sweep/"
+#location = "/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/2_free_field_mass_small_step/"
+location = "/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/lambda_0/Tau_1-50/Delta_0-1500/"
 for n in np.arange(n_files):
     #data location
     file_name = location + 'phi_' + str(n)
@@ -50,16 +51,13 @@ for n in np.arange(n_files):
     data = pd.read_csv(file_name, header = None, skiprows = 1)
     header = np.array(np.array(pd.read_csv(file_name, sep='\s+').keys())[0].split(','), dtype = float)
     data = np.array(data)
-    aux_data = data[:, 64:]
-    phi_data = data[:, :64]
+    aux_data = data[:, 32:]
+    phi_data = data[:, :32]
     #This gets it from the CSV state of "real, imag, real, imag" to "real + i*imag, real + i*imag"
     temp = np.reshape(phi_data, (phi_data.shape[0], int(phi_data.shape[1]/2), 2))
     phi_data = temp[:, :, 0] + prot.j*temp[:, :, 1]
-    chi_data = phi_data[:, prot.Nrt:]
+    #chi_data = phi_data[:, prot.Nrt:]
     phi_data = phi_data[:, :prot.Nrt] #the phi field is the first Nrt elements in each row, chi is the second.
-    #number_of_iterations = phi_data.shape[0]
-    chi_data = chi_data[20000:, :]
-    phi_data = phi_data[20000:, :]
     number_of_iterations = phi_data.shape[0]
     
     #equation 26 in arxiv 1704.06404, |det J(0)| is ingored as it'll cancel between the numerator and the denominator
@@ -71,27 +69,27 @@ for n in np.arange(n_files):
     for i in np.arange(int(number_of_iterations)):
         Obs = observable(phi_data[i, :], header)
         numerator_phi[i, :, :] = Obs*phi_tilde[i] #this is the unaveraged numerator
-        Obs = observable(chi_data[i, :], header)
-        numerator_chi[i, :, :] = Obs*phi_tilde[i]
+        #Obs = observable(chi_data[i, :], header)
+        #numerator_chi[i, :, :] = Obs*phi_tilde[i]
     #This calculates the expression fully for one initiatlisation
     expectation_observable_phi[n, :, :] = np.mean(numerator_phi, axis = 0)/denominator
-    expectation_observable_chi[n, :, :] = np.mean(numerator_chi, axis = 0)/denominator
+    #expectation_observable_chi[n, :, :] = np.mean(numerator_chi, axis = 0)/denominator
     
     #error analysis for this file
     for i in np.arange(prot.Nt):
         for j in np.arange(prot.Nt):
             file_error_phi[n, i, j] = jackknife(np.real(numerator_phi[:, i, j]/denominator), jackknife_block_length) + prot.j*jackknife(np.imag(numerator_phi[:, i, j]/denominator), jackknife_block_length)
-            file_error_chi[n, i, j] = jackknife(np.real(numerator_chi[:, i, j]/denominator), jackknife_block_length) + prot.j*jackknife(np.imag(numerator_chi[:, i, j]/denominator), jackknife_block_length)
+            #file_error_chi[n, i, j] = jackknife(np.real(numerator_chi[:, i, j]/denominator), jackknife_block_length) + prot.j*jackknife(np.imag(numerator_chi[:, i, j]/denominator), jackknife_block_length)
     print("File " + str(n) + " analysed")
 
 #this now combines all the initialisations
 final_expectation_phi = np.mean(expectation_observable_phi, axis = 0)
-final_expectation_chi = np.mean(expectation_observable_chi, axis = 0)
+#final_expectation_chi = np.mean(expectation_observable_chi, axis = 0)
 
-np.savez("expectation", final_expectation_phi, final_expectation_chi)
+#np.savez("expectation", final_expectation_phi, final_expectation_chi)
 
 final_error_phi = np.sqrt(np.sum(np.real(file_error_phi)**2, axis = 0) + prot.j*np.sum(np.imag(file_error_phi)**2, axis = 0))/np.sqrt(n_files)
-final_error_chi = np.sqrt(np.sum(np.real(file_error_chi)**2, axis = 0) + prot.j*np.sum(np.imag(file_error_chi)**2, axis = 0))/np.sqrt(n_files)
+#final_error_chi = np.sqrt(np.sum(np.real(file_error_chi)**2, axis = 0) + prot.j*np.sum(np.imag(file_error_chi)**2, axis = 0))/np.sqrt(n_files)
 
 #plotting, whatever is suitable for your observable
 for i in np.arange(prot.Nt):
@@ -107,7 +105,7 @@ for i in np.arange(prot.Nt):
     plt.savefig(location + 'classical_phi_'+str(i))
     plt.close()
     
-for i in np.arange(prot.Nt):
+'''for i in np.arange(prot.Nt):
     plt.figure(i + prot.Nt)
     plt.errorbar(x_range, np.real(final_expectation_chi[:, i]).flatten(), yerr = np.real(final_error_chi[:, i])/5, label = "real", fmt = '', linestyle = 'None', marker = '.', capsize = 2)
     plt.errorbar(x_range, np.imag(final_expectation_chi[:, i]).flatten(), yerr = np.imag(final_error_chi[:, i])/5, label = "imag", fmt = '', linestyle = 'None', marker = '.', capsize = 2)
@@ -119,24 +117,24 @@ for i in np.arange(prot.Nt):
     plt.plot()
     plt.savefig(location + 'classical_chi_'+str(i))
     plt.close()
-
-fig, ax = plt.subplots(prot.Nt, 2, figsize = (5, 10))
+'''
+fig, ax = plt.subplots(prot.Nt, 1, figsize = (5, 10))
 fig.tight_layout()
 for i in np.arange(prot.Nt):
-    ax[i, 0].errorbar(x_range, np.real(final_expectation_phi[:, i]).flatten(), yerr = np.real(final_error_phi[:, i])/5, label = "real", fmt = '', linestyle = 'None', marker = '.', capsize = 5)
-    ax[i, 0].errorbar(x_range, np.imag(final_expectation_phi[:, i]).flatten(), yerr = np.imag(final_error_phi[:, i])/5, label = "imag", fmt = '', linestyle = 'None', marker = '.', capsize = 5)
+    ax[i].errorbar(x_range, np.real(final_expectation_phi[:, i]).flatten(), yerr = np.real(final_error_phi[:, i]), label = "real", fmt = '', linestyle = 'None', marker = '.', capsize = 5)
+    ax[i].errorbar(x_range, np.imag(final_expectation_phi[:, i]).flatten(), yerr = np.imag(final_error_phi[:, i]), label = "imag", fmt = '', linestyle = 'None', marker = '.', capsize = 5)
     #ax[i, 0].axhline(0,color='black',linewidth = 0.5)
     #ax[i, 0].set_title('Classical Correlator i = ' + str(x_range[i]))
     #ax[i, 0].set_xlabel('j')
     #ax[i, 0].set_ylabel(r'$\langle \phi^{cl}_j \phi^{cl}_i \rangle$')
     #ax[i, 0].legend()
 
-    ax[i, 1].errorbar(x_range, np.real(final_expectation_chi[:, i]).flatten(), yerr = np.real(final_error_chi[:, i])/5, label = "real", fmt = '', linestyle = 'None', marker = '.', capsize = 5)
-    ax[i, 1].errorbar(x_range, np.imag(final_expectation_chi[:, i]).flatten(), yerr = np.imag(final_error_chi[:, i])/5, label = "imag", fmt = '', linestyle = 'None', marker = '.', capsize = 5)
+    ##ax[i, 1].errorbar(x_range, np.real(final_expectation_chi[:, i]).flatten(), yerr = np.real(final_error_chi[:, i])/5, label = "real", fmt = '', linestyle = 'None', marker = '.', capsize = 5)
+    ##ax[i, 1].errorbar(x_range, np.imag(final_expectation_chi[:, i]).flatten(), yerr = np.imag(final_error_chi[:, i])/5, label = "imag", fmt = '', linestyle = 'None', marker = '.', capsize = 5)
     #ax[i, 1].axhline(0,color='black',linewidth = 0.5)
     #ax[i, 1].set_title('Classical Correlator i = ' + str(x_range[i]))
     #ax[i, 1].set_xlabel('j')
     #ax[i, 1].set_ylabel(r'$\langle \phi^{cl}_j \phi^{cl}_i \rangle$')
     #ax[i, 1].legend()
 plt.savefig(location + "subplot")
-plt.savefig("single_field_update_test_subplot")
+plt.savefig("one_field_test_subplot")

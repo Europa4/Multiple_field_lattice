@@ -6,7 +6,7 @@ Created on Mon Nov  5 16:53:03 2018
 @author: ppxsw1
 """
 import numpy as np
-Nx = 8
+Nx = 1
 Nt = 10
 Nb = 2
 Npath = 2*Nt

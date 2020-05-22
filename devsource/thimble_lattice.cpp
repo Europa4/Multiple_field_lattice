@@ -382,7 +382,7 @@ int thimble_system::update()
   mydouble matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
   int output = 0; //this is the return value
   
-  matrix<dcomp> Delta = sweep_proposal();
+  matrix<dcomp> Delta = sweep_field_proposal();
 
   //creating new basefield condtions
   for(uint i = 0; i < scalars.size(); ++i)
@@ -449,6 +449,33 @@ matrix<dcomp> thimble_system::sweep_proposal()
   return Delta;
 }
 
+matrix<dcomp> thimble_system::sweep_field_proposal()
+{
+  //this function generates a proposal vector Delta, based on sweep updating, such that the entire lattice is updated by roughly the same amount.
+  dcomp* eta = new dcomp[Njac];
+  int field_id = field_choice(generator);
+  for(uint i = 0; i < Njac; ++i)
+  {
+    //setting up the proposal on the complex manifold
+    eta[i] = 0;
+  }
+
+  for(uint i = (Ntot*field_id); i < (Ntot*(field_id + 1)); ++i)
+  {
+    eta[i] = gaussian(generator) + j*gaussian(generator);
+  }
+
+  //returning the proposal to the real manifold
+  matrix<dcomp> Delta = J.solve(eta);
+  for(uint i = 0; i < Njac; ++i)
+  {
+    //taking only the elements that fit in the reduced space
+    Delta.set_element(i, 0, real(Delta.get_element(i, 0)));
+  }
+  delete[] eta;
+  return Delta;
+}
+
 matrix<dcomp> thimble_system::site_proposal()
 {
   int target_site = uniform_int(generator);
@@ -483,6 +510,9 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
   std::uniform_int_distribution<int> redo_2(0, Nsys - 1);
   //this resets the site selection system, informing it of the existence of all the fields
   uniform_int = redo_2;
+
+  std::uniform_int_distribution<int> redo_3(0, scalars.size() - 1);
+  field_choice = redo_3;
 
   dcomp* state_storage = new dcomp[(Njac + 2)*n_simulation]; //This stores the data between updates and will be saved to a file
   std::ofstream data_storage;
