@@ -101,6 +101,8 @@ scalar_field::scalar_field(int x_dim, int t_dim, double system_dt, double system
   negative_time_site(new uint[current_host->Ntot]),
   negative_space_site(new uint[current_host->Ntot]),
   j(0,1),
+  sigma(0.07071067812),
+  delta(0.1),
   host(current_host)
 {
   //class constructor
@@ -216,6 +218,8 @@ positive_space_site(new uint[obj.host->Ntot]),
 negative_time_site(new uint[obj.host->Ntot]),
 negative_space_site(new uint[obj.host->Ntot]),
 j(obj.j),
+sigma(obj.sigma),
+delta(obj.delta),
 host(obj.host)
 {
   for (int i = 0; i < 5; ++i)
