@@ -53,12 +53,12 @@ int main(int argc, char **argv)
     thimble_system sys(1, 10, 1.8, seed);
     sys.add_scalar_field(1.0);
     sys.add_scalar_field(2.0);
-    sys.set_occupation_number(1, occ_number);
+    //sys.set_occupation_number(1, occ_number);
     //sys.add_interaction(1./24, powers);
     //sys.set_path("/scratch/dp002/dc-wood3/long/");
-    sys.set_path("/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/2_free_field_mass_field_sweep/");
+    sys.set_path("/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/2_field_small_links/");
     sys.set_name("phi_" + std::to_string(i*world_size + world_rank + start_record_int));
-    sys.set_dt(0.75);
+    sys.set_dt(0.25);
     sys.set_dx(0.25);
     sys.set_occupation_number(0, occ_number);
     sys.set_proposal_size(0.25);
