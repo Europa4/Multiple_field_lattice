@@ -176,6 +176,8 @@ class thimble_system
     void set_occupation_number(int field_number, std::vector<int> new_occupation_number);
     void set_proposal_size(int field_number, double new_delta);
     void test();
+
+    double get_acceptance_rate(){return acceptance_rate;};
     
     //constructor and destructor
     thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed);
