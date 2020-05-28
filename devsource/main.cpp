@@ -70,11 +70,11 @@ int main(int argc, char **argv)
   */
   double sigmas[10] = {.05, 0.1, 0.15, .2, .25, .3, .35, .4, .45, .5};
   double results[10][10];
-  for(uint s1 = 0; s1 < 10; ++s1)
+  for(uint s1 = 0; s1 < 2; ++s1)
   {
-    for (uint s2 = 0; s1 < 10; ++s2)
+    for (uint s2 = 0; s1 < 2; ++s2)
     {
-      for (uint i = 0; i < 5; ++i)
+      for (uint i = 0; i < 2; ++i)
       {
         seed = dist(rd);
         thimble_system sys(1, 10, 1.8, seed);
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
         sys.set_dx(0.25);
         sys.set_proposal_size(0, sigmas[s1]);
         sys.set_proposal_size(1, sigmas[s2]);
-        sys.simulate(0, 1000);
+        sys.simulate(0, 2);
         results[s1][s2] += sys.get_acceptance_rate();
       }
     }
