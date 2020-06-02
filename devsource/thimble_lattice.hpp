@@ -175,6 +175,7 @@ class thimble_system
     void set_occupation_number(int field_number, int new_occupation_number[]);
     void set_occupation_number(int field_number, std::vector<int> new_occupation_number);
     void set_proposal_size(double new_delta);
+    dcomp get_S(){return S;};
     void test();
     
     //constructor and destructor

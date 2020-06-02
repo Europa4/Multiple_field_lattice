@@ -107,9 +107,9 @@ dcomp thimble_system::calc_dS(uint site, uint field_type)
 {
   int field = 0;
   int internal_site = site; //this essentially takes the busy work out of calculating which field the Jacobian is dealing with
-  if (site > Ntot)
+  if (site > Ntot - 1)
   {
-    while (internal_site > Ntot)
+    while (internal_site > Ntot - 1)
     {
       internal_site -= Ntot;
       ++field;
@@ -145,13 +145,13 @@ dcomp thimble_system::calc_ddS(uint site_1, uint site_2, uint field_type)
   uint field_2 = 0;
   dcomp ddS;
 
-  while(site_1 > Ntot)
+  while(site_1 > Ntot - 1)
   {
     site_1 -= Ntot;
     ++field_1;
   }
   
-  while(site_2 > Ntot)
+  while(site_2 > Ntot - 1)
   {
     site_2 -= Ntot;
     ++field_2;
@@ -758,18 +758,30 @@ void thimble_system::restart(std::string data_path, std::string aux_path, int n_
 
 void thimble_system::test()
 {
-  double a[1], b[1], c[1], d[1];
-  a[1] = 1.;
-  b[1] = 1.;
-  c[1] = 1.;
-  d[1] = 1.;
-  add_scalar_field(1.0);
-  scalars[0].initialise(a, b, c, d);
-  for(int k = 0; k < 5; ++k)
+  
+  for (int i = 0; i < Ntot; ++i)
   {
-      for(int i = 0; i < Nrpath; ++i)
-      {
-        std::cout << "C[" << k << "][" << i << "] = " << scalars[0].C[k][i] << std::endl;
-      }
+    printf("C[4][%i] = %f%+fi \n", i, std::real(scalars[0].C[4][i]), std::imag(scalars[0].C[4][i]));
   }
+  
+  
+  for (int i = 0; i < Ntot; ++i)
+  {
+    std::cout << i << "\t" << scalars[0].path[i] << std::endl;
+  }
+
+  for (int i = 0; i < Nx; ++i)
+  {
+    printf("field_0[%i] = %f%+fi \n", i, std::real(scalars[0].field_0[i]), std::imag(scalars[0].field_0[i]));
+  }
+
+  for (int i = 0; i < Nx; ++i)
+  {
+    printf("field_1[%i] = %f%+fi \n", i, std::real(scalars[0].field_1[i]), std::imag(scalars[0].field_1[i]));
+  }
+  for (int i = 0; i < Nx; ++i)
+  {
+    printf("field_2[%i] = %f%+fi \n", i, std::real(scalars[0].field_2[i]), std::imag(scalars[0].field_2[i]));
+  }
+  
 }

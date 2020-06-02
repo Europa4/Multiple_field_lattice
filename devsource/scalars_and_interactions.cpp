@@ -357,6 +357,12 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
     field_2[i] = fields[2][i*host->Nrpath + 1];
   }
   calculate_C();
+  /*
+  for (int i = 0; i < host -> Nrpath; ++i)
+  {
+    printf("%f%+fi \n", real(fields[2][i]), imag(fields[2][i]));
+  }
+  */
 }
 
 void scalar_field::calculate_C()
@@ -374,9 +380,9 @@ void scalar_field::calculate_C()
   //edge terms for the edge effects
   for (int i = 0; i < host->Nx; ++i)
   {
-    C[4][i*host->Nrpath] = -2.*j*field_2[i]/dt;
-    C[4][i*host->Nrpath + 1] = j*field_1[i]/dt;
-    C[4][(i + 1)*host->Nrpath - 1] = -1.*j*field_1[i]/dt;
+    C[4][i*host->Nrpath] = -2.*j*dx*field_2[i]/dt;
+    C[4][i*host->Nrpath + 1] = j*dx*field_1[i]/dt;
+    C[4][(i + 1)*host->Nrpath - 1] = -1.*j*dx*field_1[i]/dt;
   }
 
   //applying the anti-periodic bounday terms
@@ -429,6 +435,7 @@ void scalar_field::set_dt(double new_dt)
   for (int i = 0; i < host->Nrpath; ++i)
   {
     path[i] *= new_dt/dt; //rescales the path to account for a new lattice spacing
+    path_offset[i] *= new_dt/dt;
   }
   dt = new_dt;
 }

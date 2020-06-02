@@ -68,12 +68,30 @@ int main(int argc, char **argv)
   }
   
   /*
-  thimble_system sys(1, 10, 1.5, 100);
-  sys.set_name("phi_0");
+  seed = 5;
+  dcomp S;
+  for (int i = 0; i < 10; ++i)
+  {
+    thimble_system sys(1, 10, 0.2*i, seed);
+    sys.add_scalar_field(1.0);
+    sys.add_scalar_field(1.0);
+    sys.set_dt(0.5);
+    sys.set_dx(0.25);
+    sys.set_proposal_size(0.25);
+    sys.simulate(0, 0);
+    S = sys.get_S();
+    printf("S = %f%+fi \n", real(S), imag(S));
+  }
+ */
+  /*
+  thimble_system sys(1, 10, 1.8, 5);
   sys.add_scalar_field(1.0);
-  sys.set_dt(0.5);
-  sys.set_dx(0.75);
-  sys.restart("phi_0", "phi_0_aux", 20);
+  sys.add_scalar_field(1.0);
+  sys.set_dt(0.25);
+  sys.set_dx(0.25);
+  sys.set_proposal_size(0.25);
+  sys.simulate(0, 0);
+  sys.test();
   */
   
   auto end = std::chrono::system_clock::now();
