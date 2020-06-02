@@ -100,6 +100,9 @@ class scalar_field
     uint calc_n(uint site);
     int calc_x(int site);
 
+    std::normal_distribution<double> proposal; //provides the normal distribution from which proposals are drawn
+    double sigma; //std for the guassian above
+    double delta; //related quantity for the above gaussian
 
     //interfaces
     double get_mass() {return m;};
@@ -124,8 +127,6 @@ class thimble_system
     double h; //ode step size
     double dx;
     double dt;
-    double delta;
-    double sigma; //proposal step size when put into the gaussian distribution
     double acceptance_rate;
     unsigned long int rng_seed;
     matrix <dcomp> J;
@@ -138,7 +139,6 @@ class thimble_system
     std::uniform_real_distribution<double> uniform_double; //used by the MCMC update checker to provide a number between 0 and 1
     std::uniform_int_distribution<int> uniform_int; //used to pick a random site if using the single site update method
     std::uniform_int_distribution<int> field_choice; //used to pick a field if using a field sweep update
-    std::normal_distribution<double> gaussian; //provides the normal distribution from which proposals are drawn
     std::normal_distribution<double> abcd; //used in the field initial condition calculations
 
     matrix<dcomp> calc_jacobian(bool proposal = false);
@@ -151,7 +151,7 @@ class thimble_system
     int update();
     matrix<dcomp> sweep_proposal();
     matrix<dcomp> site_proposal();
-    matrix<dcomp> sweep_field_proposal();
+    matrix<dcomp> sweep_field_proposal(int field_choice);
     void pre_simulation_check();
     
 
@@ -174,9 +174,10 @@ class thimble_system
     void set_occupation_number(int field_number, int new_occupation_number);
     void set_occupation_number(int field_number, int new_occupation_number[]);
     void set_occupation_number(int field_number, std::vector<int> new_occupation_number);
-    void set_proposal_size(double new_delta);
-    dcomp get_S(){return S;};
+    void set_proposal_size(int field_number, double new_delta);
     void test();
+
+    double get_acceptance_rate(){return acceptance_rate;};
     
     //constructor and destructor
     thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed);

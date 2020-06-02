@@ -33,8 +33,6 @@ file_name("0"),
 j(0,1),
 dx(1.),
 dt(0.75),
-sigma(0.07071067812),
-delta(0.1),
 generator(rng_seed),
 uniform_double(0, 1),
 abcd(0, 1),
@@ -382,7 +380,8 @@ int thimble_system::update()
   mydouble matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
   int output = 0; //this is the return value
   
-  matrix<dcomp> Delta = sweep_field_proposal();
+  int field_update_id = field_choice(generator);;
+  matrix<dcomp> Delta = sweep_field_proposal(field_update_id);
 
   //creating new basefield condtions
   for(uint i = 0; i < scalars.size(); ++i)
@@ -405,7 +404,7 @@ int thimble_system::update()
   matrix_exponenet = (mydouble) real((Delta_transpose*J*J_conj*Delta).get_element(0, 0));
   proposed_matrix_exponenet = (mydouble) real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
   //exponenet for the MC test
-  exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(real(J.get_det()))) + matrix_exponenet/pow(delta, 2) - proposed_matrix_exponenet/pow(delta, 2);
+  exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(real(J.get_det()))) + matrix_exponenet/pow(scalars[field_update_id].delta, 2) - proposed_matrix_exponenet/pow(scalars[field_update_id].delta, 2);
   check = uniform_double(generator);
   if (exp(exponenet) > check)
   {
@@ -431,10 +430,12 @@ matrix<dcomp> thimble_system::sweep_proposal()
 {
   //this function generates a proposal vector Delta, based on sweep updating, such that the entire lattice is updated by roughly the same amount.
   dcomp* eta = new dcomp[Njac];
+  uint field_id;
   for(uint i = 0; i < Njac; ++i)
   {
     //setting up the proposal on the complex manifold
-    eta[i] = gaussian(generator) + j*gaussian(generator);
+    field_id = i % Ntot;
+    eta[i] = scalars[field_id].proposal(generator) + j*scalars[field_id].proposal(generator);
   }
 
   //returning the proposal to the real manifold
@@ -449,20 +450,19 @@ matrix<dcomp> thimble_system::sweep_proposal()
   return Delta;
 }
 
-matrix<dcomp> thimble_system::sweep_field_proposal()
+matrix<dcomp> thimble_system::sweep_field_proposal(int field_choice)
 {
   //this function generates a proposal vector Delta, based on sweep updating, such that the entire lattice is updated by roughly the same amount.
   dcomp* eta = new dcomp[Njac];
-  int field_id = field_choice(generator);
   for(uint i = 0; i < Njac; ++i)
   {
     //setting up the proposal on the complex manifold
     eta[i] = 0;
   }
 
-  for(uint i = (Ntot*field_id); i < (Ntot*(field_id + 1)); ++i)
+  for(uint i = (Ntot*field_choice); i < (Ntot*(field_choice + 1)); ++i)
   {
-    eta[i] = gaussian(generator) + j*gaussian(generator);
+    eta[i] = scalars[field_choice].proposal(generator) + j*scalars[field_choice].proposal(generator);
   }
 
   //returning the proposal to the real manifold
@@ -479,7 +479,8 @@ matrix<dcomp> thimble_system::sweep_field_proposal()
 matrix<dcomp> thimble_system::site_proposal()
 {
   int target_site = uniform_int(generator);
-  dcomp proposal = gaussian(generator) + j*gaussian(generator);
+  int target_field = target_site % Ntot;
+  dcomp proposal = scalars[target_field].proposal(generator) + j*scalars[target_field].proposal(generator);
   dcomp* eta = new dcomp[Njac];
   for (uint i = 0; i < Njac; ++i)
   {
@@ -503,9 +504,12 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
   NjacSquared = pow(Njac, 2);
   Nsys = Ntot*scalars.size(); //total number of sites in the system
 
-  std::normal_distribution<double> redo(0, sigma);
-  //this resets the gaussian distirbution to use the new sigma
-  gaussian = redo;
+  for(uint i = 0; i < scalars.size(); ++i)
+  {
+    //this gives each field it's own gaussian to draw values from, with the appropreate sigma.
+    std::normal_distribution<double> redo(0, scalars[i].sigma);
+    scalars[i].proposal = redo;
+  }
   
   std::uniform_int_distribution<int> redo_2(0, Nsys - 1);
   //this resets the site selection system, informing it of the existence of all the fields
@@ -586,7 +590,11 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
         data_storage << real(scalars[i].field_1[k]) << "," << imag(scalars[i].field_1[k]) << ",";
       }
     }
-    data_storage << delta << "," << tau << "," << acceptance_rate << std::endl;
+    for (int i = 0; i < scalars.size(); ++i)
+    {
+      data_storage << scalars[i].delta << ",";
+    }
+    data_storage << tau << "," << acceptance_rate << std::endl;
   }
   else
   {
@@ -672,11 +680,11 @@ void thimble_system::set_occupation_number(int field_number, std::vector<int> ne
   delete[] internal;
 }
 
-void thimble_system::set_proposal_size(double new_delta)
+void thimble_system::set_proposal_size(int field_number, double new_delta)
 {
   //Alows the user to specify the proposal step size for the simulation.
-  delta = new_delta;
-  sigma = delta/pow(2, 0.5);
+  scalars[field_number].delta = new_delta;
+  scalars[field_number].sigma = new_delta/pow(2, 0.5);
 }
 
 void thimble_system::pre_simulation_check()
