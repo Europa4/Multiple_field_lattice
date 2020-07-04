@@ -121,6 +121,7 @@ class thimble_system
     protected:
     uint Nx, Nt, Npath, Nrpath, Ntot, Nsys; //lattice setup parameters
     int number_of_timesteps; //number of iterations for the ode solver
+    int rand_n;
     uint Njac;
     uint NjacSquared;
     double tau; //flowtime
@@ -175,6 +176,7 @@ class thimble_system
     void set_occupation_number(int field_number, int new_occupation_number[]);
     void set_occupation_number(int field_number, std::vector<int> new_occupation_number);
     void set_proposal_size(int field_number, double new_delta);
+    double p_rand();
     void test();
 
     double get_acceptance_rate(){return acceptance_rate;};

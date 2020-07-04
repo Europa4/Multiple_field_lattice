@@ -457,3 +457,4 @@ int scalar_field::calc_x(int site)
   int x = int((site - calc_n(site))/host->Nrpath);
   return x;
 }
+

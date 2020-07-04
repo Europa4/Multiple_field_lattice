@@ -19,9 +19,8 @@ from multiprocessing import Pool
 import matplotlib.pyplot as plt
 
 import prot
-#location = '/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/lambda_0/Tau_1-50/Delta_0-1500/'
-#location = '/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/Data_1_1/'
-location = '/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/long/'
+
+location = '/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/1_field_small_links_test/'
 def jackknife(data, block_length = 250):
     #takes a 1D array of real data (for example all the [i,j]th correlators from a single initialisation) and performs jackknife analysis on the mean
     number_of_blocks = int(data.size/block_length)
@@ -82,7 +81,7 @@ def calc_expectation_and_error(n_file):
     averaged_n = np.mean(numerator, axis = 0)/denominator
     return averaged_n
 
-n_files = 216
+n_files = 10
 jackknife_block_length = 250
 expectation_observable = np.zeros((n_files, prot.Nx, prot.Nt), dtype = complex)
 file_error = np.zeros((n_files, prot.Nx, prot.Nt), dtype = complex)

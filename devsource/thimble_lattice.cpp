@@ -36,7 +36,8 @@ dt(0.75),
 generator(rng_seed),
 uniform_double(0, 1),
 abcd(0, 1),
-acceptance_rate(0.)
+acceptance_rate(0.),
+rand_n(0)
 { 
   //determining the number of timesteps for the ODE solvers from the flow time  
   h = 0.1; //sets the base size 
@@ -764,32 +765,24 @@ void thimble_system::restart(std::string data_path, std::string aux_path, int n_
   simulate(0, n_new_simulation, int(std::stod(field_state[scalars.size()*Ntot])));
 }
 
+double thimble_system::p_rand()
+{
+  double r_2 = 1.414213562;
+  ++rand_n;
+  return std::cos(r_2*rand_n);
+}
+
 void thimble_system::test()
 {
   
-  for (int i = 0; i < Ntot; ++i)
+  for (uint i = 0; i < Ntot; ++i)
   {
-    printf("C[4][%i] = %f%+fi \n", i, std::real(scalars[0].C[4][i]), std::imag(scalars[0].C[4][i]));
-  }
-  
-  
-  for (int i = 0; i < Ntot; ++i)
-  {
-    std::cout << i << "\t" << scalars[0].path[i] << std::endl;
+    printf("phi[%i] = %f \n", i, std::real(scalars[0].fields[2][i]));
   }
 
-  for (int i = 0; i < Nx; ++i)
+  for (uint i = 0; i < Ntot; ++i)
   {
-    printf("field_0[%i] = %f%+fi \n", i, std::real(scalars[0].field_0[i]), std::imag(scalars[0].field_0[i]));
-  }
-
-  for (int i = 0; i < Nx; ++i)
-  {
-    printf("field_1[%i] = %f%+fi \n", i, std::real(scalars[0].field_1[i]), std::imag(scalars[0].field_1[i]));
-  }
-  for (int i = 0; i < Nx; ++i)
-  {
-    printf("field_2[%i] = %f%+fi \n", i, std::real(scalars[0].field_2[i]), std::imag(scalars[0].field_2[i]));
+    printf("chi[%i] = %f \n", i, std::real(scalars[1].fields[2][i]));
   }
   
 }
