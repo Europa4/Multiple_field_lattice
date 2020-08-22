@@ -82,6 +82,13 @@ class scalar_field
 
     public:
     dcomp* fields[5]; //contains all the flowed and unflowed fields
+    /* the field index is structured like this
+    0 flowed
+    1 proposed flowed
+    2 base
+    3 proposed base
+    4 ajustment (used in the flow code)
+    */
     dcomp* C[5];
     double* path; //sign of the path around the contour
     double* path_offset;
@@ -99,6 +106,7 @@ class scalar_field
     dcomp free_action_second_derivative(uint site_1, uint site_2);
     uint calc_n(uint site);
     int calc_x(int site);
+    
 
     std::normal_distribution<double> proposal; //provides the normal distribution from which proposals are drawn
     double sigma; //std for the guassian above
@@ -154,6 +162,7 @@ class thimble_system
     matrix<dcomp> site_proposal();
     matrix<dcomp> sweep_field_proposal(int field_choice);
     void pre_simulation_check();
+    void propogate();
     
 
     public:
@@ -177,6 +186,7 @@ class thimble_system
     void set_occupation_number(int field_number, std::vector<int> new_occupation_number);
     void set_proposal_size(int field_number, double new_delta);
     double p_rand();
+    void print_field(int field_id, int field_type);
     void test();
 
     double get_acceptance_rate(){return acceptance_rate;};

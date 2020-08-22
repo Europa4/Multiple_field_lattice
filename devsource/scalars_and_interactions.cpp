@@ -40,10 +40,13 @@ dcomp interaction::base(int site, thimble_system &current_system, int field_type
 dcomp interaction::first_derivative(int site, int field, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
+  //printf("field val = %f%+f \n", current_system.scalars[0].fields[field_type][site]);
   //all the non-derivative fields up to the derivative
   for (int i = 0; i < field; ++i)
   {
+    dcomp field = current_system.scalars[i].fields[field_type][site];
     interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
+    //printf("internal interaction contribution = %f%+fi \n", std::real(interaction_contribution), std::imag(interaction_contribution));
   }
 
   //contribution of the derivative field
@@ -329,7 +332,7 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
     //field_0[i] = 0.8;
     //field_1[i] = 1.0;
   }
-
+  /*
   for(int k = 0; k < host->Nx; ++k)
   {
       fields[2][0 + host->Nrpath*k] = field_1[k];
@@ -361,10 +364,9 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
     field_2[i] = fields[2][i*host->Nrpath + 1];
   }
   calculate_C();
-  /*
-  for (int i = 0; i < host -> Nrpath; ++i)
+  for (int i = 0; i < host->Ntot; ++i)
   {
-    printf("%f%+fi \n", real(fields[2][i]), imag(fields[2][i]));
+    fields[3][i] = fields[2][i];
   }
   */
 }

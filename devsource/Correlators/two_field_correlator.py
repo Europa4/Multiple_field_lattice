@@ -34,14 +34,14 @@ def observable(phi_data, header):
     return classical_classical_correlator
 
 
-n_files = 200
+n_files = 40
 jackknife_block_length = 250
 expectation_observable_phi = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
 expectation_observable_chi = np.copy(expectation_observable_phi)
 file_error_phi = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
 file_error_chi = np.copy(file_error_phi)
 x_range = np.arange(prot.Nt) + 1
-location = "/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/2_field_large_links_test/"
+location = "/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/self_interaction_test/"
 for n in np.arange(n_files):
     #data location
     file_name = location + 'phi_' + str(n)

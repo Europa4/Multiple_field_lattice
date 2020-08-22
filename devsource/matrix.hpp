@@ -30,6 +30,7 @@ template <class T> class matrix
     matrix forward_vector_multiplication(T vec[]);
     matrix backward_vector_multiplication(T vec[]);
     void size_output();
+    void print_matrix();
 
     //operators
     matrix<T> operator * (matrix const &obj);
@@ -70,6 +71,18 @@ template <class T>matrix<T>::matrix(int r, int c)
 template <class T>matrix<T>::~matrix()
 {
 
+}
+
+template<class T> void matrix<T>::print_matrix()
+{
+    for (int r = 0; r < size_r; ++r)
+    {
+        for (int c = 0; c < size_c; ++c)
+        {
+            std::cout << get_element(r, c) << "\t";
+        }
+        std::cout << "\n";
+    }
 }
 
 template <class T>matrix<T>::matrix(const matrix& obj) : size_r(obj.size_r),

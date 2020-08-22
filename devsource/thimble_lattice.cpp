@@ -96,6 +96,7 @@ dcomp thimble_system::calc_dS(uint site, uint field, uint field_type)
   {
     //looping through the first derivatives of all the interactions (derivatives with respect to this field)
     interaction += interactions[i].first_derivative(site, field, *this, field_type); 
+    //printf("interaction contribution = %f%+fi\n", std::real(interactions[i].first_derivative(site, field, *this, field_type)), std::imag(interactions[i].first_derivative(site, field, *this, field_type)));
   }
   interaction *= dx*j*(scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
   dS += interaction;
@@ -199,6 +200,7 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   dcomp* k2_jac = new dcomp[NjacSquared];
   dcomp* k3_jac = new dcomp[NjacSquared];
   dcomp* k4_jac = new dcomp[NjacSquared];
+  dcomp test = 0;
   int ajustment = 4;
 
   matrix<dcomp> Jac(Njac, Njac);
@@ -240,6 +242,7 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   {
     for (uint r = 0; r < Njac; ++r)
     {
+      test = h*conj(calc_dS(r, proposal_or - 2));
       k1_scalar[r] = h*conj(calc_dS(r, proposal_or - 2));
       ajustment_scalar[r] = working_scalar[r] + k1_scalar[r]/2.;
       for (int c = 0; c < Njac; ++c)
@@ -253,6 +256,12 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
       }
     }
     sync_ajustment(ajustment_scalar);
+    /*
+    for (uint r = 0; r <((int) Njac/2); ++r)
+    {
+      printf("step %i k1[%i] = %f%+fi \t k1[%i] = %f%+fi \n", i, r, real(k1_scalar[r]), imag(k1_scalar[r]), r + Ntot, real(k1_scalar[r + Ntot]), imag(k1_scalar[r + Ntot]));
+    }
+    */
     //ajustment scalar does the job of holding field values that are calculated intermittenlty in the RK45 method
     //sync_ajustment pushes the values stored in the array in this function back out to the scalarfields, which then use the value to calculate the ds and dds functions
 
@@ -380,17 +389,16 @@ int thimble_system::update()
   mydouble log_proposal;
   mydouble matrix_exponenet, proposed_matrix_exponenet, exponenet, check;
   int output = 0; //this is the return value
+
   
-  int field_update_id = field_choice(generator);;
+  int field_update_id = field_choice(generator);
   matrix<dcomp> Delta = sweep_field_proposal(field_update_id);
+  
 
   //creating new basefield condtions
-  for(uint i = 0; i < scalars.size(); ++i)
+  for(uint k = 0; k < Ntot; ++k)
   {
-    for(uint k = 0; k < Ntot; ++k)
-    {
-      scalars[i].fields[3][k] = scalars[i].fields[2][k] + Delta.get_element(k + i*Ntot, 0);
-    }
+    scalars[field_update_id].fields[3][k] = scalars[field_update_id].fields[2][k] + Delta.get_element(k + field_update_id*Ntot, 0);
   }
   
   //calculating the Jacobian, it's determinant, conjugate, and the action of the proposed field state
@@ -406,7 +414,12 @@ int thimble_system::update()
   proposed_matrix_exponenet = (mydouble) real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
   //exponenet for the MC test
   exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(real(J.get_det()))) + matrix_exponenet/pow(scalars[field_update_id].delta, 2) - proposed_matrix_exponenet/pow(scalars[field_update_id].delta, 2);
+  //printf("action = %f \n", real(proposed_action));
+  
   check = uniform_double(generator);
+  //printf("check = %f \n", check);
+
+
   if (exp(exponenet) > check)
   {
     //proposal was accepted, transfering all the proposed parameters to the storage
@@ -534,25 +547,32 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
     {
       for (uint k = 0; k < Nx; ++k)
       {
+        
         a[k] = abcd(generator);
         b[k] = abcd(generator);
         c[k] = abcd(generator);
         d[k] = abcd(generator);
+        
       }
+      //printf("field %i \n", i);
       scalars[i].initialise(a, b, c, d);
+      //print_field(i, 0);
     }
   }
+  propogate();
+
   J.resize(Njac, Njac);
   J_conj.resize(Njac, Njac);
   J = calc_jacobian();
   J_conj = J.conjugate();
   S = calc_S(0);
+  J.print_matrix();
+  exit(1);
   //setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
   for (uint i = 0; i < n_burn_in; ++i)
   {
     update();
   }
-
   for(uint i = 0; i < n_simulation; ++i)
   {
     acceptance_rate += update(); //calculating the acceptance rate from the return value of the update
@@ -770,6 +790,63 @@ double thimble_system::p_rand()
   double r_2 = 1.414213562;
   ++rand_n;
   return std::cos(r_2*rand_n);
+}
+
+void thimble_system::print_field(int field_id, int field_type)
+{
+  for(int i = 0; i < Ntot; ++i)
+  {
+    printf("Field[%i] = %f%+fi \n", i, std::real(scalars[field_id].fields[field_type][i]), std::imag(scalars[field_id].fields[field_type][i]));
+  }
+}
+
+void thimble_system::propogate()
+{
+  //Alright this code is grotty as hell, but since it's called at the start of the simulation and not during, it doesn't have to be as well optimised as the stuff in the simulation routines.
+  //It propogates the field's initial values as per the "classical" solution, taking into account interactions
+  for (int k = 0; k < Nx; ++k)
+  {
+    for (int f = 0; f < scalars.size(); ++f)
+    {
+      scalars[f].fields[2][0 + Nrpath*k] = scalars[f].field_1[k];
+      scalars[f].fields[2][1 + Nrpath*k] = -1.0*dt*dt*(scalars[f].squareMass*scalars[f].fields[2][0 + Nrpath*k]) + 2.0*scalars[f].fields[2][0 + Nrpath*k] - scalars[f].field_0[k];
+    }
+    for (int i = 1; i < (int) (Nrpath/2); ++i)
+    {
+      for (int f = 0; f < scalars.size(); ++f)
+      {
+        scalars[f].fields[2][i + Nrpath*k + 1] = -dt*dt*scalars[f].squareMass*scalars[f].fields[2][i + Nrpath*k] + 2.0*scalars[f].fields[2][i + Nrpath*k] - scalars[f].fields[2][i + Nrpath*k - 1];
+        for (int I = 0; I < interactions.size(); ++I)
+        {
+          scalars[f].fields[2][i + Nrpath*k + 1] -= dt*dt*interactions[I].first_derivative(i + Nrpath*k, f, *this, 2); 
+        }
+        scalars[f].fields[2][Nrpath*(k + 1) - i - 1] = scalars[f].fields[2][Nrpath*k + i + 1]; //sets up the return leg of the contour
+      }
+    }
+  }
+  //now that the propogation is complete, we need to clear the classical data from the first site, and calculate C for each field.
+  for (int f = 0; f < scalars.size(); ++f)
+  {
+    for (int k = 0; k < Nx; ++k)
+    {
+      scalars[f].fields[2][k*Nrpath] = 0;
+    }
+
+    for (int i = 0; i < Ntot; ++i)
+    {
+      //copying the field from the base into the full
+      scalars[f].fields[0][i] = scalars[f].fields[2][i];
+      scalars[f].fields[1][i] = scalars[f].fields[2][i];
+      scalars[f].fields[3][i] = scalars[f].fields[2][i];
+    }
+
+    for (int i = 0; i < Nx; ++i)
+    {
+      scalars[f].field_2[i] = scalars[f].fields[2][i*Nrpath + 1];
+    }
+
+    scalars[f].calculate_C();
+  }
 }
 
 void thimble_system::test()

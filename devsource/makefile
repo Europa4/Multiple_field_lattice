@@ -1,4 +1,4 @@
-LIBS	= -I/usr/local/include/ -L/usr/lib64 -lboost_filesystem -lboost_system -lquadmath -lm -std=c++0x -O4
+LIBS	= -I/usr/local/include/ -L/usr/lib64 -lboost_filesystem -lboost_system -lquadmath -lm -std=c++0x -g
 CCOMP 	= mpic++
 LINKER 	= -o 
 CFLAGS 	= -c
