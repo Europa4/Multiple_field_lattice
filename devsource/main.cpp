@@ -11,7 +11,6 @@ using namespace std;
 #include <chrono>
 #include <ctime>
 
-#include <boost/numeric/odeint.hpp>
 void harmonic_oscillator(const std::vector<double> &x, std::vector<double> &dx, const double t)
 {
   dx[0] = x[1];
@@ -44,7 +43,7 @@ int main(int argc, char **argv)
   boost::numeric::odeint::runge_kutta4<std::vector<double>> stepper;
   std::vector<double> x = {0., 1.};
   //boost::numeric::odeint::integrate_const(stepper, harmonic_oscillator, x, 0.0, 10.0, 0.01);
-  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<double>>>(1.e-10, 1.e-6), harmonic_oscillator, x, 0.0, 10.0, 0.01);
+  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<double>>>(1.e-6, 1.e-6), harmonic_oscillator, x, 0.0, 10.0, 0.01);
   //std::cout << x[0] << std::endl;
   //end of test
 

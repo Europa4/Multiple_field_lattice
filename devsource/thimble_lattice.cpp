@@ -118,6 +118,20 @@ dcomp thimble_system::calc_dS(uint site, uint field_type)
   return calc_dS(internal_site, field, field_type);
 }
 
+dcomp thimble_system::calc_dS(uint site, const std::vector<dcomp>& field)
+{
+  //used only by the ODE solver
+  for (int i = 0; i < scalars.size(); ++i)
+  {
+    for (int k = 0; k < Ntot; ++k)
+    {
+      scalars[i].fields[4][k] = field[i*Ntot + k];
+    }
+  }
+
+  return calc_dS(site, 4);
+}
+
 dcomp thimble_system::calc_ddS(uint site_1, uint site_2, uint field_1, uint field_2, uint field_type)
 {
   dcomp ddS = 0;
@@ -159,6 +173,20 @@ dcomp thimble_system::calc_ddS(uint site_1, uint site_2, uint field_type)
 
   ddS = calc_ddS(site_1, site_2, field_1, field_2, field_type);
   return ddS;
+}
+
+dcomp thimble_system::calc_ddS(uint site_1, uint site_2, const std::vector<dcomp>& field)
+{
+  //used only by the ODE solver
+  for (int i = 0; i < scalars.size(); ++i)
+  {
+    for (int k = 0; k < Ntot; ++k)
+    {
+      scalars[i].fields[4][k] = field[i*Ntot + k];
+    }
+  }
+
+  return calc_ddS(site_1, site_2, 4);
 }
 
 field_id_return thimble_system::calc_field(int master_site)
@@ -206,8 +234,10 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   matrix<dcomp> Jac(Njac, Njac);
   dcomp jac_element;
 
+  std::vector<dcomp> vec(Njac + NjacSquared);
+  
   //identifying if it's the proposal or exising fields we wish to flow
-  int proposal_or = 2;
+  proposal_or = 2;
   if (proposal)
   {
     proposal_or = 3;
@@ -218,7 +248,7 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
     {
       //resetting the flowed field to the base field. At this point we're at tau = 0 so the flowed field and base field should be identical
       scalars[i].fields[proposal_or - 2][k] = scalars[i].fields[proposal_or][k];
-      working_scalar[i*Ntot + k] = scalars[i].fields[proposal_or][k];
+      vec[i*Ntot + k] = scalars[i].fields[proposal_or][k];
     }
   }
 
@@ -229,120 +259,32 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
     {
       if (r == c)
       {
-        Jac.set_element(r, c, 1);
+        vec[Njac + r + Njac*c] = 1.;
       }
       else
       {
-        Jac.set_element(r, c, 0);
+        vec[Njac + r + Njac*c] = 0.;
       }
     }
   }
   //standard implementation of RK45 for an autonomous system
-  for (uint i = 0; i < number_of_timesteps; ++i)
+  boost::numeric::odeint::runge_kutta4<std::vector<dcomp>> stepper;
+  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-6, 1.e-6), flow_rhs, vec, 0.0, tau, h);
+  for (int r = 0; r < Njac; ++r)
   {
-    for (uint r = 0; r < Njac; ++r)
+    for (int c = 0; c < Njac; ++c)
     {
-      test = h*conj(calc_dS(r, proposal_or - 2));
-      k1_scalar[r] = h*conj(calc_dS(r, proposal_or - 2));
-      ajustment_scalar[r] = working_scalar[r] + k1_scalar[r]/2.;
-      for (int c = 0; c < Njac; ++c)
-      {
-        k1_jac[r + Njac*c] = 0.;
-        for (int s = 0; s < Njac; ++s)
-        {
-          k1_jac[r + Njac*c] += h*conj(calc_ddS(r, s, proposal_or - 2)*Jac.get_element(s, c));
-        }
-        ajustment_jac[r + Njac*c] = Jac.get_element(r, c) + k1_jac[r + Njac*c]/2.;
-      }
-    }
-    sync_ajustment(ajustment_scalar);
-    /*
-    for (uint r = 0; r <((int) Njac/2); ++r)
-    {
-      printf("step %i k1[%i] = %f%+fi \t k1[%i] = %f%+fi \n", i, r, real(k1_scalar[r]), imag(k1_scalar[r]), r + Ntot, real(k1_scalar[r + Ntot]), imag(k1_scalar[r + Ntot]));
-    }
-    */
-    //ajustment scalar does the job of holding field values that are calculated intermittenlty in the RK45 method
-    //sync_ajustment pushes the values stored in the array in this function back out to the scalarfields, which then use the value to calculate the ds and dds functions
-
-    for (uint r = 0; r < Njac; ++r)
-    {
-      k2_scalar[r] = h*conj(calc_dS(r, ajustment));
-      for (uint c = 0; c < Njac; ++c)
-      {
-        k2_jac[r + Njac*c] = 0;
-        for(uint s = 0; s < Njac; ++s)
-        {
-          k2_jac[r + Njac*c] += h*conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
-        }
-      }
-    }
-
-    for (uint r = 0; r < Njac; ++r)
-    {
-      ajustment_scalar[r] = working_scalar[r] + k2_scalar[r]/2.;
-      for (uint c = 0; c < Njac; ++c)
-      {
-        ajustment_jac[r + Njac*c] = Jac.get_element(r,c) + k2_jac[r + Njac*c]/2.;
-      }
-    }
-    sync_ajustment(ajustment_scalar);
-
-    for (uint r = 0; r < Njac; ++r)
-    {
-      k3_scalar[r] = h*conj(calc_dS(r, ajustment));
-      for (uint c = 0; c < Njac; ++c)
-      {
-        k3_jac[r + Njac*c] = 0;
-        for (uint s = 0; s < Njac; ++s)
-        {
-          k3_jac[r + Njac*c] += h*conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
-        }
-      }
-    }
-
-    for (uint r = 0; r < Njac; ++r)
-    {
-      ajustment_scalar[r] = working_scalar[r] + k3_scalar[r];
-      for (uint c = 0; c < Njac; ++c)
-      {
-        ajustment_jac[r + Njac*c] = Jac.get_element(r, c) + k3_jac[r + Njac*c];
-      }
-    }
-    sync_ajustment(ajustment_scalar);
-
-    for (uint r = 0; r < Njac; ++r)
-    {
-      k4_scalar[r] = h*conj(calc_dS(r, ajustment));
-      for (uint c = 0; c < Njac; ++c)
-      {
-        k4_jac[r + Njac*c] = 0;
-        for(uint s = 0; s < Njac; ++s)
-        {
-          k4_jac[r + Njac*c] += h*conj(calc_ddS(r, s, ajustment)*ajustment_jac[s + Njac*c]);
-        }
-      }
-    }
-    for (uint r = 0; r < Njac; ++r)
-    {
-      working_scalar[r] += (k1_scalar[r] + 2.*k2_scalar[r] + 2.*k3_scalar[r] + k4_scalar[r])/6.;
-      for (uint c = 0; c < Njac; ++c)
-      {
-        jac_element = Jac.get_element(r, c);
-        jac_element += (k1_jac[r + Njac*c] + 2.*k2_jac[r + Njac*c] + 2.*k3_jac[r + Njac*c] + k4_jac[r + Njac*c])/6.;
-        Jac.set_element(r, c, jac_element);
-      }
-    }
-    //returning the flowed fields to the scalar fields object
-    for (uint i = 0; i < scalars.size(); ++i)
-    {
-      for (uint k = 0; k < Ntot; ++k)
-      {
-        scalars[i].fields[proposal_or - 2][k] = working_scalar[i*Ntot + k];
-      }
+      Jac.set_element(r, c, vec[r + c*Njac]);
     }
   }
-  
+
+  for (int i = 0; i < scalars.size(); ++i)
+  {
+    for (int k = 0; k < Ntot; ++k)
+    {
+      scalars[i].fields[proposal_or - 2][k] = vec[k + i*Njac];
+    }
+  }
   delete[] working_scalar;
   delete[] ajustment_scalar;
   delete[] k1_scalar;
@@ -846,6 +788,24 @@ void thimble_system::propogate()
     }
 
     scalars[f].calculate_C();
+  }
+}
+
+void thimble_system::flow_rhs(const std::vector<dcomp> &x, std::vector<dcomp> &dx, const double t)
+{
+  for (int i = 0; i < Njac; ++i)
+  {
+    dx[i] = conj(calc_dS(i, x));
+  }
+  for (int r = 0; r < Njac; ++r)
+  {
+    for (int c = 0; c < Njac; ++c)
+    {
+      for (int s = 0; s < Njac; ++s)
+      {
+        dx[Njac + r + c*Njac] = conj(calc_ddS(r, s, x)*x[r + c*Njac]);
+      }
+    }
   }
 }
 

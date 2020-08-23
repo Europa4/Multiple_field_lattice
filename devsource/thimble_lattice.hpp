@@ -8,6 +8,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/multiprecision/float128.hpp>
 #include <boost/multiprecision/cpp_complex.hpp>
+#include <boost/numeric/odeint.hpp>
 #include <boost/algorithm/string.hpp>
 #include <algorithm>
 #include <stdio.h>
@@ -149,12 +150,15 @@ class thimble_system
     std::uniform_int_distribution<int> uniform_int; //used to pick a random site if using the single site update method
     std::uniform_int_distribution<int> field_choice; //used to pick a field if using a field sweep update
     std::normal_distribution<double> abcd; //used in the field initial condition calculations
+    int proposal_or; //used to control which fields are used by the ODE solver
 
     matrix<dcomp> calc_jacobian(bool proposal = false);
     dcomp calc_dS(uint site, uint field, uint field_type);
     dcomp calc_dS(uint site, uint field_type);
+    dcomp calc_dS(uint site, const std::vector<dcomp>& field);
     dcomp calc_ddS(uint site_1, uint site_2, uint field_1, uint field_2, uint field_type = 0);
     dcomp calc_ddS(uint site_1, uint site_2, uint field_type = 0);
+    dcomp calc_ddS(uint site_1, uint site_2, const std::vector<dcomp>& field);
     field_id_return calc_field(int master_site);
     void sync_ajustment(dcomp ajustment[]);
     int update();
@@ -163,6 +167,7 @@ class thimble_system
     matrix<dcomp> sweep_field_proposal(int field_choice);
     void pre_simulation_check();
     void propogate();
+    
     
 
     public:
@@ -187,6 +192,7 @@ class thimble_system
     void set_proposal_size(int field_number, double new_delta);
     double p_rand();
     void print_field(int field_id, int field_type);
+    void flow_rhs(const std::vector<dcomp> &x, std::vector<dcomp> &dx, const double t);
     void test();
 
     double get_acceptance_rate(){return acceptance_rate;};
