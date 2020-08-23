@@ -30,6 +30,17 @@ const double e = 2.71828182846;
 class thimble_system;
 //*************************************************************************************
 
+class ode_handler
+{
+    //handler for the boost ODE system
+    thimble_system& sys;
+    ode_handler(thimble_system &system) : sys(system) {};
+    public:
+    void operator() (const std::vector<dcomp> &x, std::vector<dcomp> &dx, const double t);
+
+    friend class thimble_system;
+};
+
 struct field_id_return
 {
     int field_number;
@@ -204,6 +215,7 @@ class thimble_system
     //friendship declaration
     friend class scalar_field;
     friend class interaction;
+    friend class ode_handler;
 };
 
 #endif //THIMBLE_LATTICE_H_INCLUDED

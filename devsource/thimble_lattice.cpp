@@ -16,6 +16,24 @@ double dd(T i, T j)
   return Delta;
 }
 
+void ode_handler::operator() (const std::vector<dcomp> &x, std::vector<dcomp> &dx, const double t)
+{
+  for (int i = 0; i < sys.Njac; ++i)
+  {
+    dx[i] = conj(sys.calc_dS(i, x));
+  }
+  for (int r = 0; r < sys.Njac; ++r)
+  {
+    for (int c = 0; c < sys.Njac; ++c)
+    {
+      for (int s = 0; s < sys.Njac; ++s)
+      {
+        dx[sys.Njac + r + c*sys.Njac] = conj(sys.calc_ddS(r, s, x)*x[r + c*sys.Njac]);
+      }
+    }
+  }
+}
+
 //*************************************thimble_system***************************
 
 thimble_system::thimble_system(int x_dim, int t_dim, double flow_time, long unsigned int seed) : 
@@ -268,8 +286,9 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
     }
   }
   //standard implementation of RK45 for an autonomous system
+  ode_handler ode_sys(*this);
   boost::numeric::odeint::runge_kutta4<std::vector<dcomp>> stepper;
-  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-6, 1.e-6), flow_rhs, vec, 0.0, tau, h);
+  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-6, 1.e-6), ode_sys, vec, 0.0, tau, h);
   for (int r = 0; r < Njac; ++r)
   {
     for (int c = 0; c < Njac; ++c)
@@ -793,6 +812,7 @@ void thimble_system::propogate()
 
 void thimble_system::flow_rhs(const std::vector<dcomp> &x, std::vector<dcomp> &dx, const double t)
 {
+  //DEPRECIATED
   for (int i = 0; i < Njac; ++i)
   {
     dx[i] = conj(calc_dS(i, x));
@@ -823,3 +843,4 @@ void thimble_system::test()
   }
   
 }
+
