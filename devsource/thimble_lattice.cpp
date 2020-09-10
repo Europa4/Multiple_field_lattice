@@ -28,7 +28,7 @@ void ode_handler::operator() (const std::vector<dcomp> &x, std::vector<dcomp> &d
     {
       for (int s = 0; s < sys.Njac; ++s)
       {
-        dx[sys.Njac + r + c*sys.Njac] = conj(sys.calc_ddS(r, s, x)*x[r + c*sys.Njac]);
+        dx[sys.Njac + r + c*sys.Njac] += conj(sys.calc_ddS(r, s, x)*x[s + c*sys.Njac]);
       }
     }
   }
@@ -246,7 +246,6 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   dcomp* k2_jac = new dcomp[NjacSquared];
   dcomp* k3_jac = new dcomp[NjacSquared];
   dcomp* k4_jac = new dcomp[NjacSquared];
-  dcomp test = 0;
   int ajustment = 4;
 
   matrix<dcomp> Jac(Njac, Njac);
@@ -288,12 +287,12 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   //standard implementation of RK45 for an autonomous system
   ode_handler ode_sys(*this);
   boost::numeric::odeint::runge_kutta4<std::vector<dcomp>> stepper;
-  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-6, 1.e-6), ode_sys, vec, 0.0, tau, h);
+  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-4, 1.e-4), ode_sys, vec, 0.0, tau, h);
   for (int r = 0; r < Njac; ++r)
   {
     for (int c = 0; c < Njac; ++c)
     {
-      Jac.set_element(r, c, vec[r + c*Njac]);
+      Jac.set_element(r, c, vec[r + c*Njac + Njac]);
     }
   }
 
@@ -301,7 +300,7 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   {
     for (int k = 0; k < Ntot; ++k)
     {
-      scalars[i].fields[proposal_or - 2][k] = vec[k + i*Njac];
+      scalars[i].fields[proposal_or - 2][k] = vec[k + i*Ntot];
     }
   }
   delete[] working_scalar;
@@ -374,7 +373,7 @@ int thimble_system::update()
   matrix_exponenet = (mydouble) real((Delta_transpose*J*J_conj*Delta).get_element(0, 0));
   proposed_matrix_exponenet = (mydouble) real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
   //exponenet for the MC test
-  exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(real(J.get_det()))) + matrix_exponenet/pow(scalars[field_update_id].delta, 2) - proposed_matrix_exponenet/pow(scalars[field_update_id].delta, 2);
+  exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(abs(J.get_det()))) + matrix_exponenet/pow(scalars[field_update_id].delta, 2) - proposed_matrix_exponenet/pow(scalars[field_update_id].delta, 2);
   //printf("action = %f \n", real(proposed_action));
   
   check = uniform_double(generator);
@@ -515,20 +514,15 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
         d[k] = abcd(generator);
         
       }
-      //printf("field %i \n", i);
       scalars[i].initialise(a, b, c, d);
-      //print_field(i, 0);
     }
   }
   propogate();
-
   J.resize(Njac, Njac);
   J_conj.resize(Njac, Njac);
   J = calc_jacobian();
   J_conj = J.conjugate();
   S = calc_S(0);
-  J.print_matrix();
-  exit(1);
   //setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
   for (uint i = 0; i < n_burn_in; ++i)
   {
@@ -536,7 +530,9 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
   }
   for(uint i = 0; i < n_simulation; ++i)
   {
-    acceptance_rate += update(); //calculating the acceptance rate from the return value of the update
+    int update_test = update();
+    //acceptance_rate += update(); //calculating the acceptance rate from the return value of the update
+    acceptance_rate += update_test;
     //storing the values of the fields, the action, and the Jacobian in a unified vector to be written to file later
     for (int k = 0; k < scalars.size(); ++k)
     {
@@ -547,7 +543,7 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
       }
     }
     state_storage[i*(Njac + 2) + scalars.size()*Ntot] = S;
-    state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = log(real(J.get_det())) +j*arg(J.get_det());
+    state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = log(abs(J.get_det())) +j*arg(J.get_det());
     //adding auxiliary parameters, action and the log determinant
   }
   acceptance_rate /= (n_simulation + n_existing);
