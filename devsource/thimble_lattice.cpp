@@ -28,7 +28,7 @@ void ode_handler::operator() (const std::vector<dcomp> &x, std::vector<dcomp> &d
     {
       for (int s = 0; s < sys.Njac; ++s)
       {
-        dx[sys.Njac + r + c*sys.Njac] += conj(sys.calc_ddS(r, s, x)*x[s + c*sys.Njac]);
+        dx[sys.Njac + r + c*sys.Njac] += conj(sys.calc_ddS(r, s, x)*x[s + c*sys.Njac + sys.Njac]);
       }
     }
   }
@@ -287,7 +287,8 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   //standard implementation of RK45 for an autonomous system
   ode_handler ode_sys(*this);
   boost::numeric::odeint::runge_kutta4<std::vector<dcomp>> stepper;
-  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-4, 1.e-4), ode_sys, vec, 0.0, tau, h);
+  //boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-4, 1.e-4), ode_sys, vec, 0.0, tau, h);
+  boost::numeric::odeint::integrate_const(stepper, ode_sys, vec, 0., tau, h);
   for (int r = 0; r < Njac; ++r)
   {
     for (int c = 0; c < Njac; ++c)
@@ -828,15 +829,8 @@ void thimble_system::flow_rhs(const std::vector<dcomp> &x, std::vector<dcomp> &d
 void thimble_system::test()
 {
   
-  for (uint i = 0; i < Ntot; ++i)
-  {
-    printf("phi[%i] = %f \n", i, std::real(scalars[0].fields[2][i]));
-  }
-
-  for (uint i = 0; i < Ntot; ++i)
-  {
-    printf("chi[%i] = %f \n", i, std::real(scalars[1].fields[2][i]));
-  }
+  dcomp action = calc_S(0);
+  printf(" action = %f%+fi\n", std::real(action), std::imag(action));
   
 }
 

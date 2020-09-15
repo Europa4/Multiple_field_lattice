@@ -50,5 +50,6 @@
         "typeinfo": "cpp",
         "valarray": "cpp",
         "cstddef": "cpp"
-    }
+    },
+    "python.pythonPath": "/home/ppxsw1/anaconda3/bin/python"
 }
