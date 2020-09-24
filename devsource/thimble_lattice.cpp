@@ -538,6 +538,14 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
   print_field(0, 2);
   printf("flowed field \n");
   print_field(0, 0);
+  printf("Jacobian \n");
+  for (int r = 0; r < Ntot; ++r)
+  {
+    for(int c = 0; c < Ntot; ++c)
+    {
+      printf("J[%i][%i] = %f%+fi \t \t", r, c, std::real(J.get_element(r, c)), std::imag(J.get_element(r, c)));
+    }
+  }
   //setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
   for (uint i = 0; i < n_burn_in; ++i)
   {
