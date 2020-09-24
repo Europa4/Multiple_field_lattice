@@ -252,7 +252,7 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   dcomp jac_element;
 
   std::vector<dcomp> vec(Njac + NjacSquared);
-  
+  dcomp test;
   //identifying if it's the proposal or exising fields we wish to flow
   proposal_or = 2;
   if (proposal)
@@ -287,8 +287,8 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   //standard implementation of RK45 for an autonomous system
   ode_handler ode_sys(*this);
   boost::numeric::odeint::runge_kutta4<std::vector<dcomp>> stepper;
-  //boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-4, 1.e-4), ode_sys, vec, 0.0, tau, h);
-  boost::numeric::odeint::integrate_const(stepper, ode_sys, vec, 0., tau, h);
+  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-4, 1.e-4), ode_sys, vec, 0.0, tau, h);
+  //boost::numeric::odeint::integrate_const(stepper, ode_sys, vec, 0., tau, h);
   for (int r = 0; r < Njac; ++r)
   {
     for (int c = 0; c < Njac; ++c)
@@ -354,19 +354,29 @@ int thimble_system::update()
   
   int field_update_id = field_choice(generator);
   matrix<dcomp> Delta = sweep_field_proposal(field_update_id);
-  
+  printf("Delta \n");
+  for (int i = 0; i < Ntot; ++i)
+  {
+    printf("Delta[%i] = %f%+fi \n", i, std::real(Delta.get_element(i, 0)), std::imag(Delta.get_element(i, 0)));
+  }
 
   //creating new basefield condtions
   for(uint k = 0; k < Ntot; ++k)
   {
     scalars[field_update_id].fields[3][k] = scalars[field_update_id].fields[2][k] + Delta.get_element(k + field_update_id*Ntot, 0);
   }
+
+  printf("\nupdated basefield conditions \n");
+  print_field(0, 3);
   
   //calculating the Jacobian, it's determinant, conjugate, and the action of the proposed field state
   matrix<dcomp> proposed_J = calc_jacobian(proposal);
   matrix<dcomp> proposed_J_conj = proposed_J.conjugate();
   proposed_action = calc_S(1);
   log_proposal = (mydouble) log(abs(proposed_J.get_det()));
+
+  printf("updated flowed field conditions \n");
+  print_field(0, 1);
 
   //matrix multiplication required to calculate the accpetance exponenet
   matrix<dcomp> Delta_transpose = Delta.transpose();
@@ -524,6 +534,10 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
   J = calc_jacobian();
   J_conj = J.conjugate();
   S = calc_S(0);
+  printf("intial condition field \n");
+  print_field(0, 2);
+  printf("flowed field \n");
+  print_field(0, 0);
   //setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
   for (uint i = 0; i < n_burn_in; ++i)
   {
@@ -778,10 +792,23 @@ void thimble_system::propogate()
         {
           scalars[f].fields[2][i + Nrpath*k + 1] -= dt*dt*interactions[I].first_derivative(i + Nrpath*k, f, *this, 2); 
         }
-        scalars[f].fields[2][Nrpath*(k + 1) - i - 1] = scalars[f].fields[2][Nrpath*k + i + 1]; //sets up the return leg of the contour
       }
     }
   }
+
+//sets up the return leg of the contour
+  for(uint f = 0; f < scalars.size(); ++f)
+  {
+    for (uint k = 0; k < Nx; ++k)
+    {
+      for (uint n = 0; n < Nt - 2; ++n)
+      {
+        scalars[f].fields[2][Nrpath*(k + 1) - n - 1] = scalars[f].fields[2][Nrpath*k + n + 1];
+      }
+    }
+  }
+  
+
   //now that the propogation is complete, we need to clear the classical data from the first site, and calculate C for each field.
   for (int f = 0; f < scalars.size(); ++f)
   {
