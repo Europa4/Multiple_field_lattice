@@ -18,15 +18,20 @@ double dd(T i, T j)
 
 void ode_handler::operator() (const std::vector<dcomp> &x, std::vector<dcomp> &dx, const double t)
 {
-  for (int i = 0; i < sys.Njac; ++i)
+  for(uint i = 0; i < sys.Njac + sys.NjacSquared; ++i)
+  {
+    dx[i] = 0;
+  }
+
+  for (uint i = 0; i < sys.Njac; ++i)
   {
     dx[i] = conj(sys.calc_dS(i, x));
   }
-  for (int r = 0; r < sys.Njac; ++r)
+  for (uint r = 0; r < sys.Njac; ++r)
   {
-    for (int c = 0; c < sys.Njac; ++c)
+    for (uint c = 0; c < sys.Njac; ++c)
     {
-      for (int s = 0; s < sys.Njac; ++s)
+      for (uint s = 0; s < sys.Njac; ++s)
       {
         dx[sys.Njac + r + c*sys.Njac] += conj(sys.calc_ddS(r, s, x)*x[s + c*sys.Njac + sys.Njac]);
       }
