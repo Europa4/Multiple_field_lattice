@@ -67,10 +67,10 @@ int main(int argc, char **argv)
   {
     seed = 5;//dist(rd);
     printf("simulation %i initiated with seed %i \n", i*int(world_size) + world_rank + int(start_record), seed);
-    thimble_system sys(1, 4, 1.8, seed);
+    thimble_system sys(1, 10, 1.8, seed);
     sys.add_scalar_field(1.0);
     //sys.add_scalar_field(1.0);
-    sys.set_path("/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/boost_free_18/");
+    sys.set_path("/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/boost_free_18/test/");
     //sys.set_path("test/");
     sys.set_name("phi_" + std::to_string(i*world_size + world_rank + start_record_int));
     sys.set_dt(0.75);
@@ -81,8 +81,8 @@ int main(int argc, char **argv)
     //sys.set_occupation_number(0, occ_number);
     sys.set_proposal_size(0, 0.25);
     //sys.set_proposal_size(1, 0.25);
-    //sys.simulate(2 * pow(10, 3), pow(10, 1));
-    sys.simulate(0, 1);
+    sys.simulate(2 * pow(10, 3), pow(10, 2));
+    //sys.simulate(0, 1);
     //sys.simulate(0, 50);
     //sys.simulate(2, 2);
     printf("simulation %i completed \n", i*world_size + world_rank + start_record_int);

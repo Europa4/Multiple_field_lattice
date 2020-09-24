@@ -34,7 +34,7 @@ def observable(phi_data, header):
     return classical_classical_correlator
 
 
-n_files = 44
+n_files = 30
 jackknife_block_length = 250
 expectation_observable = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
 file_error = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)

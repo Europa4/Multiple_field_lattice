@@ -119,7 +119,6 @@ dcomp thimble_system::calc_dS(uint site, uint field, uint field_type)
   {
     //looping through the first derivatives of all the interactions (derivatives with respect to this field)
     interaction += interactions[i].first_derivative(site, field, *this, field_type); 
-    //printf("interaction contribution = %f%+fi\n", std::real(interactions[i].first_derivative(site, field, *this, field_type)), std::imag(interactions[i].first_derivative(site, field, *this, field_type)));
   }
   interaction *= dx*j*(scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
   dS += interaction;
@@ -358,11 +357,6 @@ int thimble_system::update()
   
   int field_update_id = field_choice(generator);
   matrix<dcomp> Delta = sweep_field_proposal(field_update_id);
-  printf("Delta \n");
-  for (int i = 0; i < Ntot; ++i)
-  {
-    printf("Delta[%i] = %f%+fi \n", i, std::real(Delta.get_element(i, 0)), std::imag(Delta.get_element(i, 0)));
-  }
 
   //creating new basefield condtions
   for(uint k = 0; k < Ntot; ++k)
@@ -370,8 +364,6 @@ int thimble_system::update()
     scalars[field_update_id].fields[3][k] = scalars[field_update_id].fields[2][k] + Delta.get_element(k + field_update_id*Ntot, 0);
   }
 
-  printf("\nupdated basefield conditions \n");
-  print_field(0, 3);
   
   //calculating the Jacobian, it's determinant, conjugate, and the action of the proposed field state
   matrix<dcomp> proposed_J = calc_jacobian(proposal);
@@ -379,8 +371,6 @@ int thimble_system::update()
   proposed_action = calc_S(1);
   log_proposal = (mydouble) log(abs(proposed_J.get_det()));
 
-  printf("updated flowed field conditions \n");
-  print_field(0, 1);
 
   //matrix multiplication required to calculate the accpetance exponenet
   matrix<dcomp> Delta_transpose = Delta.transpose();
@@ -389,10 +379,8 @@ int thimble_system::update()
   proposed_matrix_exponenet = (mydouble) real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
   //exponenet for the MC test
   exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(abs(J.get_det()))) + matrix_exponenet/pow(scalars[field_update_id].delta, 2) - proposed_matrix_exponenet/pow(scalars[field_update_id].delta, 2);
-  //printf("action = %f \n", real(proposed_action));
   
   check = uniform_double(generator);
-  //printf("check = %f \n", check);
 
 
   if (exp(exponenet) > check)
@@ -535,24 +523,9 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
   propogate();
   J.resize(Njac, Njac);
   J_conj.resize(Njac, Njac);
-  printf("dds \n");
   J = calc_jacobian();
-  printf("\n");
   J_conj = J.conjugate();
   S = calc_S(0);
-  printf("intial condition field \n");
-  print_field(0, 2);
-  printf("flowed field \n");
-  print_field(0, 0);
-  printf("Jacobian \n");
-  for (int r = 0; r < Ntot; ++r)
-  {
-    for(int c = 0; c < Ntot; ++c)
-    {
-      printf("J[%i][%i] = %f%+fi \t \t", r, c, std::real(J.get_element(r, c)), std::imag(J.get_element(r, c)));
-    }
-    printf("\n");
-  }
   //setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
   for (uint i = 0; i < n_burn_in; ++i)
   {
