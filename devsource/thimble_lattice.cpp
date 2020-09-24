@@ -203,7 +203,6 @@ dcomp thimble_system::calc_ddS(uint site_1, uint site_2, const std::vector<dcomp
       scalars[i].fields[4][k] = field[i*Ntot + k];
     }
   }
-
   return calc_ddS(site_1, site_2, 4);
 }
 
@@ -531,7 +530,9 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
   propogate();
   J.resize(Njac, Njac);
   J_conj.resize(Njac, Njac);
+  printf("dds \n");
   J = calc_jacobian();
+  printf("\n");
   J_conj = J.conjugate();
   S = calc_S(0);
   printf("intial condition field \n");
@@ -545,6 +546,7 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
     {
       printf("J[%i][%i] = %f%+fi \t \t", r, c, std::real(J.get_element(r, c)), std::imag(J.get_element(r, c)));
     }
+    printf("\n");
   }
   //setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
   for (uint i = 0; i < n_burn_in; ++i)

@@ -67,7 +67,7 @@ int main(int argc, char **argv)
   {
     seed = 5;//dist(rd);
     printf("simulation %i initiated with seed %i \n", i*int(world_size) + world_rank + int(start_record), seed);
-    thimble_system sys(1, 10, 1.8, seed);
+    thimble_system sys(1, 4, 1.8, seed);
     sys.add_scalar_field(1.0);
     //sys.add_scalar_field(1.0);
     sys.set_path("/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/boost_free_18/");
