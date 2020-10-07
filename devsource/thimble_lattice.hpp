@@ -163,7 +163,7 @@ class thimble_system
     std::normal_distribution<double> abcd; //used in the field initial condition calculations
     int proposal_or; //used to control which fields are used by the ODE solver
 
-    matrix<dcomp> calc_jacobian(bool proposal = false);
+    matrix<dcomp> calc_jacobian(bool proposal = false, int n_iteration = 0);
     dcomp calc_dS(uint site, uint field, uint field_type);
     dcomp calc_dS(uint site, uint field_type);
     dcomp calc_dS(uint site, const std::vector<dcomp>& field);
@@ -172,12 +172,13 @@ class thimble_system
     dcomp calc_ddS(uint site_1, uint site_2, const std::vector<dcomp>& field);
     field_id_return calc_field(int master_site);
     void sync_ajustment(dcomp ajustment[]);
-    int update();
+    int update(int test = 0);
     matrix<dcomp> sweep_proposal();
     matrix<dcomp> site_proposal();
     matrix<dcomp> sweep_field_proposal(int field_choice);
     void pre_simulation_check();
     void propogate();
+    
     
     
 
@@ -205,7 +206,7 @@ class thimble_system
     void print_field(int field_id, int field_type);
     void flow_rhs(const std::vector<dcomp> &x, std::vector<dcomp> &dx, const double t);
     void test();
-
+    void action_output();
     double get_acceptance_rate(){return acceptance_rate;};
     
     //constructor and destructor

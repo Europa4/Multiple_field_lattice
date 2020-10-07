@@ -120,7 +120,7 @@ dcomp thimble_system::calc_dS(uint site, uint field, uint field_type)
     //looping through the first derivatives of all the interactions (derivatives with respect to this field)
     interaction += interactions[i].first_derivative(site, field, *this, field_type); 
   }
-  interaction *= dx*j*(scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
+  interaction *= -1.*dx*j*(scalars[field].path[scalars[field].calc_n(site)] + scalars[field].path_offset[scalars[field].calc_n(site)])/2.; //(delta_n + delta_n-1) factor
   dS += interaction;
   return dS;
 }
@@ -234,7 +234,7 @@ void thimble_system::sync_ajustment(dcomp ajustment[])
   }
 }
 
-matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
+matrix<dcomp> thimble_system::calc_jacobian(bool proposal, int n_iteration)
 {
   //function calculates the Jacobian and it's determinant from either the proposed or orignal fields
   dcomp* working_scalar = new dcomp[Njac];
@@ -290,8 +290,17 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal)
   //standard implementation of RK45 for an autonomous system
   ode_handler ode_sys(*this);
   boost::numeric::odeint::runge_kutta4<std::vector<dcomp>> stepper;
-  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-4, 1.e-4), ode_sys, vec, 0.0, tau, h);
+  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-6, 1.e-6), ode_sys, vec, 0.0, tau, h);
   //boost::numeric::odeint::integrate_const(stepper, ode_sys, vec, 0., tau, h);
+  /*
+  if(n_iteration > 11080)
+  {
+    for (int i = 0; i < Njac + NjacSquared; ++i)
+    {
+      printf("vec[%i] = %f%+fi \n", i, std::real(vec[i]), std::imag(vec[i]));
+    }
+  }
+  */
   for (int r = 0; r < Njac; ++r)
   {
     for (int c = 0; c < Njac; ++c)
@@ -346,7 +355,7 @@ dcomp thimble_system::calc_S(uint field_type)
   return S;
 }
 
-int thimble_system::update()
+int thimble_system::update(int test)
 {
   bool proposal = true;
   dcomp proposed_action, proposed_detJ;
@@ -366,7 +375,7 @@ int thimble_system::update()
 
   
   //calculating the Jacobian, it's determinant, conjugate, and the action of the proposed field state
-  matrix<dcomp> proposed_J = calc_jacobian(proposal);
+  matrix<dcomp> proposed_J = calc_jacobian(proposal, test);
   matrix<dcomp> proposed_J_conj = proposed_J.conjugate();
   proposed_action = calc_S(1);
   log_proposal = (mydouble) log(abs(proposed_J.get_det()));
@@ -533,7 +542,7 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
   }
   for(uint i = 0; i < n_simulation; ++i)
   {
-    int update_test = update();
+    int update_test = update(i);
     //acceptance_rate += update(); //calculating the acceptance rate from the return value of the update
     acceptance_rate += update_test;
     //storing the values of the fields, the action, and the Jacobian in a unified vector to be written to file later
@@ -783,7 +792,7 @@ void thimble_system::propogate()
       }
     }
   }
-
+/*
 //sets up the return leg of the contour
   for(uint f = 0; f < scalars.size(); ++f)
   {
@@ -795,7 +804,7 @@ void thimble_system::propogate()
       }
     }
   }
-  
+  */
 
   //now that the propogation is complete, we need to clear the classical data from the first site, and calculate C for each field.
   for (int f = 0; f < scalars.size(); ++f)
@@ -841,11 +850,16 @@ void thimble_system::flow_rhs(const std::vector<dcomp> &x, std::vector<dcomp> &d
   }
 }
 
+void thimble_system::action_output()
+{
+  dcomp action = calc_S(0);
+  printf("action = %f%+fi\n", std::real(action), std::imag(action));
+}
+
 void thimble_system::test()
 {
-  
-  dcomp action = calc_S(0);
-  printf(" action = %f%+fi\n", std::real(action), std::imag(action));
-  
+  dcomp deriv = interactions[0].first_derivative(5, 0, *this, 0);
+  printf("interaction derivative at site 5 = %f%+fi \n", real(deriv), imag(deriv));
+
 }
 

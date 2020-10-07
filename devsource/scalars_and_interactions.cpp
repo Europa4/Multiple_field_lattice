@@ -42,9 +42,10 @@ dcomp interaction::first_derivative(int site, int field, thimble_system &current
   dcomp interaction_contribution = coupling;
   //printf("field val = %f%+f \n", current_system.scalars[0].fields[field_type][site]);
   //all the non-derivative fields up to the derivative
+  //dcomp field;
   for (int i = 0; i < field; ++i)
   {
-    dcomp field = current_system.scalars[i].fields[field_type][site];
+    //field = current_system.scalars[i].fields[field_type][site];
     interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
     //printf("internal interaction contribution = %f%+fi \n", std::real(interaction_contribution), std::imag(interaction_contribution));
   }
