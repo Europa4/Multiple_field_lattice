@@ -162,6 +162,7 @@ class thimble_system
     std::uniform_int_distribution<int> field_choice; //used to pick a field if using a field sweep update
     std::normal_distribution<double> abcd; //used in the field initial condition calculations
     int proposal_or; //used to control which fields are used by the ODE solver
+    bool flow_check; //used to check the flowing process hasn't jammed
 
     matrix<dcomp> calc_jacobian(bool proposal = false, int n_iteration = 0);
     dcomp calc_dS(uint site, uint field, uint field_type);
@@ -172,10 +173,11 @@ class thimble_system
     dcomp calc_ddS(uint site_1, uint site_2, const std::vector<dcomp>& field);
     field_id_return calc_field(int master_site);
     void sync_ajustment(dcomp ajustment[]);
-    int update(int test = 0);
+    int update();
     matrix<dcomp> sweep_proposal();
     matrix<dcomp> site_proposal();
     matrix<dcomp> sweep_field_proposal(int field_choice);
+    bool flow(std::vector<dcomp> &vec);
     void pre_simulation_check();
     void propogate();
     

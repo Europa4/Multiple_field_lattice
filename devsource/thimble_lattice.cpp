@@ -2,6 +2,7 @@
 using std::abs;
 using std::exp;
 using std::log;
+using namespace boost::numeric::odeint;
 
 
 //simple dirac delta function
@@ -83,6 +84,7 @@ void thimble_system::add_scalar_field(double mass)
   //adds a scalar field and a mass at the same time, otherwise same as above
   scalars.emplace_back(scalar_field(Nx, Nt, dt, dx, this));
   scalars[scalars.size() - 1].set_mass(mass);
+
 }
 
 void thimble_system::add_interaction(double coupling, std::vector<int> powers)
@@ -237,18 +239,7 @@ void thimble_system::sync_ajustment(dcomp ajustment[])
 matrix<dcomp> thimble_system::calc_jacobian(bool proposal, int n_iteration)
 {
   //function calculates the Jacobian and it's determinant from either the proposed or orignal fields
-  dcomp* working_scalar = new dcomp[Njac];
-  dcomp* ajustment_scalar = new dcomp[Njac];
-  dcomp* k1_scalar = new dcomp[Njac]; //RK45 variables for the scalar fields
-  dcomp* k2_scalar = new dcomp[Njac];
-  dcomp* k3_scalar = new dcomp[Njac];
-  dcomp* k4_scalar = new dcomp[Njac];
 
-  dcomp* ajustment_jac = new dcomp[NjacSquared];
-  dcomp* k1_jac = new dcomp[NjacSquared];
-  dcomp* k2_jac = new dcomp[NjacSquared];
-  dcomp* k3_jac = new dcomp[NjacSquared];
-  dcomp* k4_jac = new dcomp[NjacSquared];
   int ajustment = 4;
 
   matrix<dcomp> Jac(Njac, Njac);
@@ -289,18 +280,9 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal, int n_iteration)
   }
   //standard implementation of RK45 for an autonomous system
   ode_handler ode_sys(*this);
-  boost::numeric::odeint::runge_kutta4<std::vector<dcomp>> stepper;
-  boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_controlled<boost::numeric::odeint::runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-6, 1.e-6), ode_sys, vec, 0.0, tau, h);
-  //boost::numeric::odeint::integrate_const(stepper, ode_sys, vec, 0., tau, h);
-  /*
-  if(n_iteration > 11080)
-  {
-    for (int i = 0; i < Njac + NjacSquared; ++i)
-    {
-      printf("vec[%i] = %f%+fi \n", i, std::real(vec[i]), std::imag(vec[i]));
-    }
-  }
-  */
+  //integrate_adaptive(make_controlled<runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-4, 1.e-4), ode_sys, vec, 0.0, tau, h);
+  //integrate_const(stepper, ode_sys, vec, 0., tau, h);
+  flow(vec);
   for (int r = 0; r < Njac; ++r)
   {
     for (int c = 0; c < Njac; ++c)
@@ -316,17 +298,6 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal, int n_iteration)
       scalars[i].fields[proposal_or - 2][k] = vec[k + i*Ntot];
     }
   }
-  delete[] working_scalar;
-  delete[] ajustment_scalar;
-  delete[] k1_scalar;
-  delete[] k2_scalar;
-  delete[] k3_scalar;
-  delete[] k4_scalar;
-  delete[] ajustment_jac;
-  delete[] k1_jac;
-  delete[] k2_jac;
-  delete[] k3_jac;
-  delete[] k4_jac;
 
   return Jac;
 }
@@ -355,7 +326,7 @@ dcomp thimble_system::calc_S(uint field_type)
   return S;
 }
 
-int thimble_system::update(int test)
+int thimble_system::update()
 {
   bool proposal = true;
   dcomp proposed_action, proposed_detJ;
@@ -375,39 +346,42 @@ int thimble_system::update(int test)
 
   
   //calculating the Jacobian, it's determinant, conjugate, and the action of the proposed field state
-  matrix<dcomp> proposed_J = calc_jacobian(proposal, test);
-  matrix<dcomp> proposed_J_conj = proposed_J.conjugate();
-  proposed_action = calc_S(1);
-  log_proposal = (mydouble) log(abs(proposed_J.get_det()));
-
-
-  //matrix multiplication required to calculate the accpetance exponenet
-  matrix<dcomp> Delta_transpose = Delta.transpose();
-
-  matrix_exponenet = (mydouble) real((Delta_transpose*J*J_conj*Delta).get_element(0, 0));
-  proposed_matrix_exponenet = (mydouble) real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
-  //exponenet for the MC test
-  exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(abs(J.get_det()))) + matrix_exponenet/pow(scalars[field_update_id].delta, 2) - proposed_matrix_exponenet/pow(scalars[field_update_id].delta, 2);
-  
-  check = uniform_double(generator);
-
-
-  if (exp(exponenet) > check)
+  flow_check = true;
+  matrix<dcomp> proposed_J = calc_jacobian(proposal);
+  if(flow_check)
   {
-    //proposal was accepted, transfering all the proposed parameters to the storage
-    S = proposed_action;
-    J = proposed_J;
-    J_conj = proposed_J_conj;
-    //transfering over all the scalar fields
-    for (uint i = 0; i < scalars.size(); ++i)
+    matrix<dcomp> proposed_J_conj = proposed_J.conjugate();
+    proposed_action = calc_S(1);
+    log_proposal = (mydouble) log(abs(proposed_J.get_det()));
+
+
+    //matrix multiplication required to calculate the accpetance exponenet
+    matrix<dcomp> Delta_transpose = Delta.transpose();
+
+    matrix_exponenet = (mydouble) real((Delta_transpose*J*J_conj*Delta).get_element(0, 0));
+    proposed_matrix_exponenet = (mydouble) real((Delta_transpose*proposed_J*proposed_J_conj*Delta).get_element(0,0)); //hacky solution
+    //exponenet for the MC test
+    exponenet = ((mydouble) real(S - proposed_action)) + 2.*log_proposal - 2.*((mydouble) log(abs(J.get_det()))) + matrix_exponenet/pow(scalars[field_update_id].delta, 2) - proposed_matrix_exponenet/pow(scalars[field_update_id].delta, 2);
+    
+    check = uniform_double(generator);
+
+    if (exp(exponenet) > check)
     {
-      for (uint k = 0; k < Ntot; ++k)
+      //proposal was accepted, transfering all the proposed parameters to the storage
+      S = proposed_action;
+      J = proposed_J;
+      J_conj = proposed_J_conj;
+      //transfering over all the scalar fields
+      for (uint i = 0; i < scalars.size(); ++i)
       {
-        scalars[i].fields[0][k] = scalars[i].fields[1][k];
-        scalars[i].fields[2][k] = scalars[i].fields[3][k];
+        for (uint k = 0; k < Ntot; ++k)
+        {
+          scalars[i].fields[0][k] = scalars[i].fields[1][k];
+          scalars[i].fields[2][k] = scalars[i].fields[3][k];
+        }
       }
+      output = 1;
     }
-    output = 1;
   }
   return output;
 }
@@ -452,6 +426,10 @@ matrix<dcomp> thimble_system::sweep_field_proposal(int field_choice)
   }
 
   //returning the proposal to the real manifold
+  for (int i = 0; i < NjacSquared; ++i)
+  {
+    //printf("J[%i] = %f%+fi\n", i, std::real(J.storage[i]), std::imag(J.storage[i]));
+  }
   matrix<dcomp> Delta = J.solve(eta);
   for(uint i = 0; i < Njac; ++i)
   {
@@ -542,9 +520,9 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
   }
   for(uint i = 0; i < n_simulation; ++i)
   {
-    int update_test = update(i);
+    ;
     //acceptance_rate += update(); //calculating the acceptance rate from the return value of the update
-    acceptance_rate += update_test;
+    acceptance_rate += update();
     //storing the values of the fields, the action, and the Jacobian in a unified vector to be written to file later
     for (int k = 0; k < scalars.size(); ++k)
     {
@@ -856,10 +834,42 @@ void thimble_system::action_output()
   printf("action = %f%+fi\n", std::real(action), std::imag(action));
 }
 
+bool thimble_system::flow(std::vector<dcomp>& vec)
+{
+  double t(0), timestep(h);
+  ode_handler ode_sys(*this);
+
+  //setting up the boost ODE stepper
+  runge_kutta_cash_karp54<std::vector<dcomp>> stepper;
+  auto adaptive_stepper = make_controlled(1.e-4, 1.e-4, stepper);
+
+  while (t < tau)
+  {
+    //if the simulation slows to a crawl, it's probably tending to infinity because the non-linearlity has screwed things up.
+    //Given those steps should be rejected anyway, it's faster to scrub them early. This also prevents bugs due to the values overflowing.
+    if(timestep > h/1000.)
+    {
+      //ensuring there's no overstepping
+      if (t + timestep > tau)
+      {
+        timestep = tau - t;
+      }
+      adaptive_stepper.try_step(ode_sys, vec, t, timestep);
+    }
+    else
+    {
+      flow_check = false;
+      return flow_check;
+    }
+  }
+  return flow_check;
+}
+
 void thimble_system::test()
 {
-  dcomp deriv = interactions[0].first_derivative(5, 0, *this, 0);
-  printf("interaction derivative at site 5 = %f%+fi \n", real(deriv), imag(deriv));
-
+  for (int i = 0; i < Ntot; ++i)
+  {
+    printf("site %i, \t positive space site = %i \n", i, scalars[0].positive_space_site[i]);
+  }
 }
 

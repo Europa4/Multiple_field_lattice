@@ -182,7 +182,6 @@ scalar_field::scalar_field(int x_dim, int t_dim, double system_dt, double system
     }
     negative_space_site[i] = (current_host->Nx - 1)*current_host->Nrpath + i;
   }
-
 }
 
 scalar_field::~scalar_field()
@@ -333,7 +332,7 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
     //field_0[i] = 0.8;
     //field_1[i] = 1.0;
   }
-  /*
+  
   for(int k = 0; k < host->Nx; ++k)
   {
       fields[2][0 + host->Nrpath*k] = field_1[k];
@@ -369,7 +368,7 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
   {
     fields[3][i] = fields[2][i];
   }
-  */
+  
 }
 
 void scalar_field::calculate_C()
@@ -408,7 +407,7 @@ dcomp scalar_field::free_action(uint site, uint field_type)
   if(n != host->Nrpath - 1)
   {
     S = -1.*(C[1][site]/2.)*pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2)
-      - pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2)) + squareMass*pow(fields[field_type][site], 2)/2.)
+      //- pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2)) + squareMass*pow(fields[field_type][site], 2)/2.)
       + C[4][site]*fields[field_type][site];
   }
   else
@@ -424,8 +423,10 @@ dcomp scalar_field::free_action(uint site, uint field_type)
 dcomp scalar_field::free_action_derivative(uint site, uint field_type)
 {
   //derivative of the above action
+  //printf("site = %i, \tpositive space site = %i \n", site, positive_space_site[site]);
   dcomp dS = C[0][site]*fields[field_type][site] + C[1][site]*fields[field_type][positive_time_site[site]] + C[2][site]*fields[field_type][negative_time_site[site]]
-    + C[3][site]*(fields[field_type][positive_space_site[site]] + fields[field_type][negative_space_site[site]]) + C[4][site];
+    + C[3][site]*(fields[field_type][positive_space_site[site]] + fields[field_type][negative_space_site[site]]) 
+    + C[4][site];
   return dS;
 }
 
