@@ -34,14 +34,15 @@ def observable(phi_data, header):
     return classical_classical_correlator
 
 
-n_files = 10
+n_files = 50
 jackknife_block_length = 250
 expectation_observable_phi = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
 expectation_observable_chi = np.copy(expectation_observable_phi)
 file_error_phi = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
 file_error_chi = np.copy(file_error_phi)
 x_range = np.arange(prot.Nt) + 1
-location = "/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/boost_free_18/test_two_field/"
+#location = "/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/boost_free_18/test_two_field/"
+location = "../Data/2_test/"
 for n in np.arange(n_files):
     #data location
     file_name = location + 'phi_' + str(n)
@@ -58,8 +59,8 @@ for n in np.arange(n_files):
     chi_data = phi_data[:, prot.Nrt:]
     phi_data = phi_data[:, :prot.Nrt] #the phi field is the first Nrt elements in each row, chi is the second.
     #number_of_iterations = phi_data.shape[0]
-    chi_data = chi_data[20000:, :]
-    phi_data = phi_data[20000:, :]
+    #chi_data = chi_data[20000:, :]
+    #phi_data = phi_data[20000:, :]
     number_of_iterations = phi_data.shape[0]
     
     #equation 26 in arxiv 1704.06404, |det J(0)| is ingored as it'll cancel between the numerator and the denominator

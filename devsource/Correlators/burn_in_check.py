@@ -6,7 +6,8 @@ import pandas as pd
 
 import prot
 
-location = "/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/2_free_field_mass_small_step/"
+#location = "/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/2_free_field_mass_small_step/"
+location = "../Data/2_test/"
 file_number = 0
 file_name = location + "phi_" + str(file_number)
 data = pd.read_csv(file_name, header = None, skiprows = 1)

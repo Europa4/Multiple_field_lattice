@@ -59,7 +59,7 @@ dx(1.),
 dt(0.75),
 generator(rng_seed),
 uniform_double(0, 1),
-abcd(0, 1),
+abcd(0., 1.),
 acceptance_rate(0.),
 rand_n(0)
 { 
@@ -164,7 +164,7 @@ dcomp thimble_system::calc_ddS(uint site_1, uint site_2, uint field_1, uint fiel
   {
     ddS = scalars[field_1].free_action_second_derivative(site_1, site_2); //free component
   }
-  
+
   if (site_1 == site_2) //only add the interactions which are on equal sites
   {
     for (int i = 0; i < interactions.size(); ++i)
@@ -172,6 +172,10 @@ dcomp thimble_system::calc_ddS(uint site_1, uint site_2, uint field_1, uint fiel
       interaction += interactions[i].second_derivative(site_1, field_1, field_2, *this, field_type);
     }
     interaction *= -1.*j*dx*(scalars[field_1].path[scalars[field_1].calc_n(site_1)] + scalars[field_1].path_offset[scalars[field_1].calc_n(site_1)])/2.;
+  }
+  if(isnan(std::real(interaction)))
+  {
+    printf("panic! \n");
   }
   ddS += interaction;
   return ddS;
@@ -281,8 +285,9 @@ matrix<dcomp> thimble_system::calc_jacobian(bool proposal, int n_iteration)
   //standard implementation of RK45 for an autonomous system
   ode_handler ode_sys(*this);
   //integrate_adaptive(make_controlled<runge_kutta_cash_karp54<std::vector<dcomp>>>(1.e-4, 1.e-4), ode_sys, vec, 0.0, tau, h);
-  //integrate_const(stepper, ode_sys, vec, 0., tau, h);
   flow(vec);
+  //integrate_const(stepper, ode_sys, vec, 0., tau, h);
+  
   for (int r = 0; r < Njac; ++r)
   {
     for (int c = 0; c < Njac; ++c)
@@ -497,12 +502,10 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
     {
       for (uint k = 0; k < Nx; ++k)
       {
-        
         a[k] = abcd(generator);
         b[k] = abcd(generator);
         c[k] = abcd(generator);
         d[k] = abcd(generator);
-        
       }
       scalars[i].initialise(a, b, c, d);
     }
@@ -511,16 +514,18 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
   J.resize(Njac, Njac);
   J_conj.resize(Njac, Njac);
   J = calc_jacobian();
+  //J.print_matrix();
   J_conj = J.conjugate();
   S = calc_S(0);
   //setup is now complete, the Jacobian, it's conjugate, and it's determinant have been calculated, and the scalars are primed.
+
   for (uint i = 0; i < n_burn_in; ++i)
   {
     update();
-  }
+  }  
+
   for(uint i = 0; i < n_simulation; ++i)
   {
-    ;
     //acceptance_rate += update(); //calculating the acceptance rate from the return value of the update
     acceptance_rate += update();
     //storing the values of the fields, the action, and the Jacobian in a unified vector to be written to file later
@@ -535,7 +540,8 @@ void thimble_system::simulate(uint n_burn_in, uint n_simulation, uint n_existing
     state_storage[i*(Njac + 2) + scalars.size()*Ntot] = S;
     state_storage[i*(Njac + 2) + scalars.size()*Ntot + 1] = log(abs(J.get_det())) +j*arg(J.get_det());
     //adding auxiliary parameters, action and the log determinant
-  }
+  }  
+
   acceptance_rate /= (n_simulation + n_existing);
   if (n_existing == 0)
   {
@@ -770,7 +776,7 @@ void thimble_system::propogate()
       }
     }
   }
-/*
+
 //sets up the return leg of the contour
   for(uint f = 0; f < scalars.size(); ++f)
   {
@@ -782,7 +788,7 @@ void thimble_system::propogate()
       }
     }
   }
-  */
+  
 
   //now that the propogation is complete, we need to clear the classical data from the first site, and calculate C for each field.
   for (int f = 0; f < scalars.size(); ++f)
@@ -838,6 +844,7 @@ bool thimble_system::flow(std::vector<dcomp>& vec)
 {
   double t(0), timestep(h);
   ode_handler ode_sys(*this);
+  flow_check = true;
 
   //setting up the boost ODE stepper
   runge_kutta_cash_karp54<std::vector<dcomp>> stepper;
@@ -847,7 +854,7 @@ bool thimble_system::flow(std::vector<dcomp>& vec)
   {
     //if the simulation slows to a crawl, it's probably tending to infinity because the non-linearlity has screwed things up.
     //Given those steps should be rejected anyway, it's faster to scrub them early. This also prevents bugs due to the values overflowing.
-    if(timestep > h/1000.)
+    if(timestep > h/100.)
     {
       //ensuring there's no overstepping
       if (t + timestep > tau)
@@ -867,9 +874,12 @@ bool thimble_system::flow(std::vector<dcomp>& vec)
 
 void thimble_system::test()
 {
-  for (int i = 0; i < Ntot; ++i)
+  double holder = 0;
+  for (int i = 0; i < pow(10, 6); ++i)
   {
-    printf("site %i, \t positive space site = %i \n", i, scalars[0].positive_space_site[i]);
+    holder += pow(abcd(generator), 2);
   }
+  holder = holder/pow(10, 6);
+  printf("holder = %f \n", holder);
 }
 

@@ -4,7 +4,7 @@ using std::exp;
 using std::log;
 
 
-//simple dirac delta function
+//simple kroneker delta function
 template <class T>
 double dd(T i, T j)
 {
@@ -40,14 +40,10 @@ dcomp interaction::base(int site, thimble_system &current_system, int field_type
 dcomp interaction::first_derivative(int site, int field, thimble_system &current_system, int field_type)
 {
   dcomp interaction_contribution = coupling;
-  //printf("field val = %f%+f \n", current_system.scalars[0].fields[field_type][site]);
   //all the non-derivative fields up to the derivative
-  //dcomp field;
   for (int i = 0; i < field; ++i)
   {
-    //field = current_system.scalars[i].fields[field_type][site];
     interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
-    //printf("internal interaction contribution = %f%+fi \n", std::real(interaction_contribution), std::imag(interaction_contribution));
   }
 
   //contribution of the derivative field
@@ -77,6 +73,7 @@ dcomp interaction::second_derivative(int site, int field_1, int field_2, thimble
     //contribution of all non-derivative fields from beyond the derivative field value
     for (int i = field_1 + 1; i < powers.size(); ++i)
     {
+      printf("i = %i\n", i);
       interaction_contribution *= pow(current_system.scalars[i].fields[field_type][site], powers[i]);
     }
   }
@@ -291,9 +288,8 @@ void scalar_field::set_mass(double new_mass)
 
 void scalar_field::initialise(double a[], double b[], double c[], double d[])
 {
-  //this is called *after* the constructor, because we need to specify the mass
+  //this is called *after* the constructor, because we need to specify the mass and other parameters
   double p, omega_p, omega_tilde, Omega_p, V;
-
   
   for (int i = 0; i < host->Nx; ++i)
   {
@@ -311,7 +307,7 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
       p = pow(2.*(1. - cos(q*2.*pi/(dx*host->Nx)))/pow(dx, 2), 0.5);
       omega_p = pow(pow(p,2) + pow(m,2),0.5);
       omega_tilde = acos(1 - pow(omega_p*dt,2)/2)/dt;
-      Omega_p = sin(omega_p*dt)/dt; //configuring variables for this momentum
+      Omega_p = sin(omega_tilde*dt)/dt; //configuring variables for this momentum
       if ((host->Nx - q)%host->Nx == 0)
       {
         //corner mode case
@@ -325,9 +321,8 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
         field_1[i] += pow(e, j*p*(i*dx))*((a[q] + j*b[q])*cos(omega_tilde*dt) + (c[q] + j*d[q])*Omega_p*dt)*pow(occupation_number[q] + 0.5, 0.5)/pow(2*Omega_p, 2) + conj(pow(e, j*p*(i*dx))*((a[q] + j*b[q])*cos(omega_tilde*dt) + (c[q] + j*d[q])*Omega_p*dt)*pow(occupation_number[q] + 0.5, 0.5)/pow(2*Omega_p, 2));
       }
     }
-    field_0[i] = field_0[i]/V; //rescaling for the volume. hbar is taken to be one.
-    field_1[i] = field_1[i]/V;
-
+    field_0[i] = field_0[i]/pow(V, 0.5); //rescaling for the volume. hbar is taken to be one.
+    field_1[i] = field_1[i]/pow(V, 0.5);
     //manual force to check values
     //field_0[i] = 0.8;
     //field_1[i] = 1.0;
@@ -363,7 +358,6 @@ void scalar_field::initialise(double a[], double b[], double c[], double d[])
   {
     field_2[i] = fields[2][i*host->Nrpath + 1];
   }
-  calculate_C();
   for (int i = 0; i < host->Ntot; ++i)
   {
     fields[3][i] = fields[2][i];
@@ -407,7 +401,7 @@ dcomp scalar_field::free_action(uint site, uint field_type)
   if(n != host->Nrpath - 1)
   {
     S = -1.*(C[1][site]/2.)*pow(fields[field_type][positive_time_site[site]] - fields[field_type][site], 2)
-      //- pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2)) + squareMass*pow(fields[field_type][site], 2)/2.)
+      - pow(dx, 2)*C[3][site]*(pow(fields[field_type][positive_space_site[site]] - fields[field_type][site], 2)/(2.*pow(dx, 2)) + squareMass*pow(fields[field_type][site], 2)/2.)
       + C[4][site]*fields[field_type][site];
   }
   else
@@ -423,7 +417,7 @@ dcomp scalar_field::free_action(uint site, uint field_type)
 dcomp scalar_field::free_action_derivative(uint site, uint field_type)
 {
   //derivative of the above action
-  //printf("site = %i, \tpositive space site = %i \n", site, positive_space_site[site]);
+  
   dcomp dS = C[0][site]*fields[field_type][site] + C[1][site]*fields[field_type][positive_time_site[site]] + C[2][site]*fields[field_type][negative_time_site[site]]
     + C[3][site]*(fields[field_type][positive_space_site[site]] + fields[field_type][negative_space_site[site]]) 
     + C[4][site];

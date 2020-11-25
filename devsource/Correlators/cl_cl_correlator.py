@@ -28,19 +28,20 @@ def observable(phi_data, header):
     #currently set up to calculate the classical classical correlator for the 0D case
     classical_vector = np.reshape(np.concatenate((0.5*(phi_data[1:int(prot.Nrp/2)] + np.flip(phi_data[int(prot.Nrp/2 + 1):], axis = 0)), [phi_data[int(prot.Nrp/2)]])), (1, int(prot.Nrp/2)))
     classical_vector = np.append([header[1], header[3]], classical_vector)
+    #classical_vector = np.append([header[1], header[5]], classical_vector)
     classical_vector = np.reshape(classical_vector, (1, classical_vector.size))
     classical_vector_transpose = np.reshape(classical_vector, (int(prot.Nrp/2) + 2,1))
     classical_classical_correlator = np.matmul(classical_vector_transpose, classical_vector)
     return classical_classical_correlator
 
 
-n_files = 20
+n_files = 50
 jackknife_block_length = 250
 expectation_observable = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
 file_error = np.zeros((n_files, prot.Nt, prot.Nt), dtype = complex)
 x_range = np.arange(prot.Nt) + 1
 #location = '/run/media/ppxsw1/78fe3857-1897-4617-a65e-83c9aa61be27/boost_free_18/test/'
-location = '../Data/one_field_old_ode/'
+location = '../Data/2_test/'
 for n in np.arange(n_files):
     #data location
     file_name = location + 'phi_' + str(n)
@@ -49,7 +50,8 @@ for n in np.arange(n_files):
     data = pd.read_csv(file_name, header = None, skiprows = 1)
     header = np.array(np.array(pd.read_csv(file_name, sep='\s+').keys())[0].split(','), dtype = float)
     data = np.array(data)
-    aux_data = data[:, 2*prot.Nrp:]
+    #aux_data = data[:, 2*prot.Nrp:]
+    aux_data = data[:, -4:]
     phi_data = data[:, :2*prot.Nrp]
     #This gets it from the CSV state of "real, imag, real, imag" to "real + i*imag, real + i*imag"
     temp = np.reshape(phi_data, (phi_data.shape[0], int(phi_data.shape[1]/2), 2))
@@ -71,6 +73,7 @@ for n in np.arange(n_files):
     for i in np.arange(prot.Nt):
         for j in np.arange(prot.Nt):
             file_error[n, i, j] = jackknife(np.real(numerator[:, i, j]/denominator), jackknife_block_length) + prot.j*jackknife(np.imag(numerator[:, i, j]/denominator), jackknife_block_length)
+    print("file", n, "completed")
 
 #this now combines all the initialisations
 final_expectation = np.mean(expectation_observable, axis = 0)
